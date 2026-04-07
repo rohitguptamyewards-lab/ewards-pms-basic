@@ -43,21 +43,13 @@ const columns = [
         ],
     },
     {
-        key: 'design',
-        label: 'Design',
-        color: '#ec4899',
-        defaultStage: 'figma_design_wip',
-        stages: [
-            'figma_design_wip',
-            'design_under_review',
-        ],
-    },
-    {
         key: 'development',
         label: 'Development',
         color: '#10b981',
         defaultStage: 'development_wip',
         stages: [
+            'figma_design_wip',
+            'design_under_review',
             'development_wip',
             'dev_testing_wip',
             'dev_changes_required',
@@ -81,16 +73,6 @@ const columns = [
         ],
     },
     {
-        key: 'ready_review',
-        label: 'Ready/Review',
-        color: '#06b6d4',
-        defaultStage: 'ready_for_internal',
-        stages: [
-            'ready_for_internal',
-            'ready_to_go_for_live',
-        ],
-    },
-    {
         key: 'live_testing',
         label: 'Live Testing',
         color: '#8b5cf6',
@@ -98,6 +80,16 @@ const columns = [
         stages: [
             'live_testing_wip',
             'bugs_reported_live',
+        ],
+    },
+    {
+        key: 'ready_review',
+        label: 'Ready/Review',
+        color: '#06b6d4',
+        defaultStage: 'ready_for_internal',
+        stages: [
+            'ready_for_internal',
+            'ready_to_go_for_live',
         ],
     },
     {

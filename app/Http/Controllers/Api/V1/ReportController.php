@@ -41,7 +41,7 @@ class ReportController extends Controller
     public function workers(Request $request)
     {
         $role = $this->authRole();
-        abort_unless(in_array($role, ['manager', 'analyst_head', 'analyst']), 403);
+        abort_unless(in_array($role, ['manager', 'analyst_head', 'senior_developer']), 403);
 
         $monthStart = now()->startOfMonth()->toDateString();
         $weekStart = now()->startOfWeek()->toDateString();
@@ -213,6 +213,92 @@ class ReportController extends Controller
         return response()->json([
             'worklogs'        => $worklogs,
             'employeeSummary' => $employeeSummary,
+        ]);
+    }
+
+    /**
+     * Get worklog details for a specific team member (for Workers Report detail view)
+     */
+    public function memberWorklogs(Request $request, int $memberId)
+    {
+        $role = $this->authRole();
+        abort_unless(in_array($role, ['manager', 'analyst_head', 'senior_developer']), 403);
+
+        $member = DB::table('team_members')->where('id', $memberId)->first();
+        if (!$member) abort(404);
+
+        // Current projects (active)
+        $currentProjects = DB::table('projects')
+            ->where(function ($q) use ($memberId) {
+                $q->where('owner_id', $memberId)
+                  ->orWhere('analyst_id', $memberId)
+                  ->orWhere('developer_id', $memberId)
+                  ->orWhere('analyst_testing_id', $memberId)
+                  ->orWhereExists(function ($sub) use ($memberId) {
+                      $sub->select(DB::raw(1))
+                          ->from('project_workers')
+                          ->whereColumn('project_workers.project_id', 'projects.id')
+                          ->where('project_workers.user_id', $memberId);
+                  });
+            })
+            ->whereNull('deleted_at')
+            ->where('status', 'active')
+            ->select('id', 'name', 'status', 'priority')
+            ->get();
+
+        // Lifetime projects
+        $lifetimeProjects = DB::table('projects')
+            ->where(function ($q) use ($memberId) {
+                $q->where('owner_id', $memberId)
+                  ->orWhere('analyst_id', $memberId)
+                  ->orWhere('developer_id', $memberId)
+                  ->orWhere('analyst_testing_id', $memberId)
+                  ->orWhereExists(function ($sub) use ($memberId) {
+                      $sub->select(DB::raw(1))
+                          ->from('project_workers')
+                          ->whereColumn('project_workers.project_id', 'projects.id')
+                          ->where('project_workers.user_id', $memberId);
+                  });
+            })
+            ->whereNull('deleted_at')
+            ->select('id', 'name', 'status', 'priority')
+            ->get();
+
+        // Recent worklogs (last 30 days)
+        $recentWorklogs = DB::table('work_logs')
+            ->join('projects', 'work_logs.project_id', '=', 'projects.id')
+            ->select(
+                'work_logs.*',
+                'projects.name as project_name'
+            )
+            ->where('work_logs.user_id', $memberId)
+            ->whereNull('work_logs.deleted_at')
+            ->where('work_logs.log_date', '>=', now()->subDays(30)->toDateString())
+            ->orderByDesc('work_logs.log_date')
+            ->orderByDesc('work_logs.start_time')
+            ->get();
+
+        // Per-project hour summary
+        $projectHours = DB::table('work_logs')
+            ->join('projects', 'work_logs.project_id', '=', 'projects.id')
+            ->select(
+                'projects.id as project_id',
+                'projects.name as project_name',
+                DB::raw('SUM(work_logs.hours_spent) as total_hours'),
+                DB::raw('COUNT(*) as log_count')
+            )
+            ->where('work_logs.user_id', $memberId)
+            ->whereNull('work_logs.deleted_at')
+            ->groupBy('projects.id', 'projects.name')
+            ->orderByDesc(DB::raw('SUM(work_logs.hours_spent)'))
+            ->get();
+
+        return response()->json([
+            'member' => $member,
+            'currentProjects' => $currentProjects,
+            'lifetimeProjects' => $lifetimeProjects,
+            'recentWorklogs' => $recentWorklogs,
+            'projectHours' => $projectHours,
         ]);
     }
 

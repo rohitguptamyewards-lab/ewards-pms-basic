@@ -65,6 +65,7 @@ Route::prefix('v1')->name('api.')->middleware(['auth'])->group(function () {
     Route::get('reports/workers', [ReportController::class, 'workers']);
     Route::get('reports/dashboard', [ReportController::class, 'dashboard']);
     Route::get('reports/projects/{projectId}/worklogs', [ReportController::class, 'projectWorklogs']);
+    Route::get('reports/members/{memberId}/worklogs', [ReportController::class, 'memberWorklogs']);
 
     // Work Logs
     Route::get('work-logs', [WorkLogController::class, 'index']);

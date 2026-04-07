@@ -426,66 +426,84 @@ const selectedProjectName = computed(() => {
 
         <!-- ===================== GROUPED WORK LOG ENTRIES ===================== -->
         <div class="space-y-4">
-            <div v-for="group in groupedLogs" :key="group.date" class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div v-for="group in groupedLogs" :key="group.date">
                 <!-- Date header -->
-                <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-5 py-2.5">
-                    <span class="text-sm font-semibold text-gray-700">{{ formatDate(group.date) }}</span>
-                    <span class="font-mono text-sm font-bold text-[#4e1a77]">{{ dailyTotalHMS(group.total) }}</span>
+                <div class="flex items-center justify-between px-1 py-2">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ formatDate(group.date) }}</span>
+                    <span class="font-mono text-xs font-bold text-[#4e1a77]">{{ dailyTotalHMS(group.total) }}</span>
                 </div>
 
-                <!-- Entries -->
-                <div class="divide-y divide-gray-50">
+                <!-- Entries - Clockify style rows -->
+                <div class="space-y-1">
                     <div
                         v-for="log in group.logs"
                         :key="log.id"
-                        class="group flex items-center gap-4 px-5 py-3 hover:bg-gray-50/60 transition-colors"
+                        class="group flex items-center bg-white border border-gray-200 rounded-lg px-4 py-2.5 hover:border-gray-300 hover:shadow-sm transition-all"
                     >
-                        <!-- Left: note + project -->
-                        <div class="flex-1 min-w-0">
+                        <!-- Description + Project -->
+                        <div class="flex-1 min-w-0 flex items-center gap-3">
                             <p class="text-sm text-gray-800 truncate" :class="{ 'text-gray-400 italic': !log.note }">
                                 {{ log.note || 'No description' }}
                             </p>
-                            <div class="flex items-center gap-1.5 mt-1">
+                            <Link
+                                :href="`/projects/${log.project_id}`"
+                                class="hidden sm:inline-flex items-center gap-1.5 shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-[#4e1a77]/10 hover:text-[#4e1a77] transition-colors"
+                            >
                                 <span
-                                    class="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                                    class="inline-block h-2 w-2 rounded-full shrink-0"
                                     :style="{ backgroundColor: projectDotColor(log.project_id) }"
                                 ></span>
-                                <Link
-                                    :href="`/projects/${log.project_id}`"
-                                    class="text-xs font-medium text-gray-500 hover:text-[#4e1a77] truncate"
-                                >
-                                    {{ log.project_name }}
-                                </Link>
-                            </div>
-                            <p v-if="isManagerOrAnalyst && log.user_name" class="text-[10px] text-gray-400 mt-0.5">{{ log.user_name }}</p>
+                                {{ log.project_name }}
+                            </Link>
+                            <span v-if="isManagerOrAnalyst && log.user_name" class="hidden md:inline text-[10px] text-gray-400 shrink-0">{{ log.user_name }}</span>
                         </div>
 
-                        <!-- Right: time range + duration + menu -->
-                        <div class="flex items-center gap-4 shrink-0">
+                        <!-- Right side: tag icon, time range, calendar, duration, play, 3-dot -->
+                        <div class="flex items-center gap-2 sm:gap-3 shrink-0 ml-3">
+                            <!-- Tag icon -->
+                            <svg class="hidden lg:block h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
+                            </svg>
+
+                            <!-- Billable icon -->
+                            <span class="hidden lg:inline text-gray-300 text-sm font-medium">&#8377;</span>
+
                             <!-- Time range -->
-                            <span class="hidden sm:inline text-xs text-gray-400">
+                            <span class="hidden sm:inline text-xs text-gray-500 font-medium whitespace-nowrap">
                                 {{ formatTime(log.start_time) }} - {{ formatTime(log.end_time) }}
                             </span>
 
+                            <!-- Calendar icon -->
+                            <svg class="hidden md:block h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                            </svg>
+
                             <!-- Duration -->
-                            <span class="font-mono text-sm font-semibold text-gray-800 min-w-[72px] text-right">
+                            <span class="font-mono text-sm font-bold text-gray-900 min-w-[72px] text-right">
                                 {{ hoursToHMS(log.hours_spent) }}
                             </span>
+
+                            <!-- Play/resume icon -->
+                            <button class="hidden sm:flex h-7 w-7 items-center justify-center rounded-full text-[#4e1a77] hover:bg-[#4e1a77]/10 transition-colors" title="Start similar">
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5.14v14l11-7-11-7z" />
+                                </svg>
+                            </button>
 
                             <!-- 3-dot menu -->
                             <div class="relative">
                                 <button
                                     @click.stop="toggleMenu(log.id)"
-                                    class="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                                    class="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
                                     title="Actions"
                                 >
                                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <circle cx="10" cy="4" r="1.5" />
+                                        <circle cx="4" cy="10" r="1.5" />
                                         <circle cx="10" cy="10" r="1.5" />
-                                        <circle cx="10" cy="16" r="1.5" />
+                                        <circle cx="16" cy="10" r="1.5" />
                                     </svg>
                                 </button>
-                                <!-- Dropdown -->
                                 <div
                                     v-if="openMenuId === log.id"
                                     class="absolute right-0 top-8 z-10 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"

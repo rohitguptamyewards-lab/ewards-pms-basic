@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import PriorityBadge from '@/Components/PriorityBadge.vue';
@@ -25,6 +25,17 @@ const props = defineProps({
 const page = usePage();
 const role = computed(() => page.props.auth?.user?.role);
 const isManagerOrAnalyst = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
+
+// Parse tags - handle both JSON strings and arrays
+const parsedTags = computed(() => {
+    const t = props.project?.tags;
+    if (!t) return [];
+    if (Array.isArray(t)) return t;
+    if (typeof t === 'string') {
+        try { const arr = JSON.parse(t); return Array.isArray(arr) ? arr : []; } catch { return []; }
+    }
+    return [];
+});
 
 const activeTab = ref('overview');
 const tabs = [
@@ -160,12 +171,66 @@ async function deletePlanner(id) {
 
 // ── Updates ─────────────────────────────────────────────
 const updateForm = ref({ content: '', source: 'manual' });
+const postingUpdate = ref(false);
+const updateError = ref('');
+
+// @mention support
+const mentionQuery = ref('');
+const showMentionDropdown = ref(false);
+const mentionCursorPos = ref(0);
+const updateTextarea = ref(null);
+
+const mentionSuggestions = computed(() => {
+    if (!mentionQuery.value) return [];
+    const q = mentionQuery.value.toLowerCase();
+    const members = Array.isArray(props.teamMembers) ? props.teamMembers : [];
+    return members.filter(m => m.name?.toLowerCase().includes(q)).slice(0, 6);
+});
+
+function onUpdateInput(e) {
+    const val = e.target.value;
+    const pos = e.target.selectionStart;
+    // Check if we're typing after @
+    const textBefore = val.substring(0, pos);
+    const atMatch = textBefore.match(/@(\w*)$/);
+    if (atMatch) {
+        mentionQuery.value = atMatch[1];
+        showMentionDropdown.value = true;
+        mentionCursorPos.value = pos;
+    } else {
+        showMentionDropdown.value = false;
+        mentionQuery.value = '';
+    }
+}
+
+function insertMention(member) {
+    const val = updateForm.value.content;
+    const pos = mentionCursorPos.value;
+    const textBefore = val.substring(0, pos);
+    const textAfter = val.substring(pos);
+    const atStart = textBefore.lastIndexOf('@');
+    updateForm.value.content = textBefore.substring(0, atStart) + `@${member.name} ` + textAfter;
+    showMentionDropdown.value = false;
+    mentionQuery.value = '';
+    nextTick(() => { if (updateTextarea.value) updateTextarea.value.focus(); });
+}
 
 async function addUpdate() {
-    if (!updateForm.value.content) return;
-    const { data } = await axios.post(`/api/v1/projects/${props.project.id}/updates`, updateForm.value);
-    localUpdates.value.unshift(data);
-    updateForm.value = { content: '', source: 'manual' };
+    if (!updateForm.value.content.trim()) return;
+    postingUpdate.value = true;
+    updateError.value = '';
+    try {
+        const { data } = await axios.post(`/api/v1/projects/${props.project.id}/updates`, {
+            content: updateForm.value.content,
+            source: updateForm.value.source,
+        });
+        localUpdates.value.unshift(data);
+        updateForm.value = { content: '', source: 'manual' };
+    } catch (e) {
+        console.error('Post failed', e);
+        updateError.value = e.response?.data?.message || e.response?.statusText || 'Failed to post update. Please try again.';
+    }
+    postingUpdate.value = false;
 }
 
 // ── Workers ─────────────────────────────────────────────
@@ -265,6 +330,14 @@ function timeAgo(d) {
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function highlightMentions(text) {
+    if (!text) return '';
+    // Escape HTML first
+    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Highlight @mentions
+    return escaped.replace(/@(\w[\w\s]*?\w)(?=\s|$|[.,!?])/g, '<span class="inline-flex rounded bg-[#f5f0ff] px-1 text-[#4e1a77] font-medium">@$1</span>');
 }
 
 function isOverdue(date) {
@@ -502,10 +575,10 @@ const statusColors = {
                         <p class="text-xs font-medium text-gray-500">Objective</p>
                         <p class="text-sm text-gray-700">{{ project.objective }}</p>
                     </div>
-                    <div v-if="project?.tags?.length">
+                    <div v-if="parsedTags.length">
                         <p class="text-xs font-medium text-gray-500">Tags</p>
                         <div class="flex flex-wrap gap-1 mt-1">
-                            <span v-for="tag in project.tags" :key="tag" class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">{{ tag }}</span>
+                            <span v-for="tag in parsedTags" :key="tag" class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">{{ tag }}</span>
                         </div>
                     </div>
                 </div>
@@ -815,15 +888,48 @@ const statusColors = {
         <!-- ═══════ UPDATES TAB ═══════ -->
         <div v-if="activeTab === 'updates'" class="space-y-4">
             <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div class="flex gap-3">
-                    <textarea v-model="updateForm.content" rows="2" placeholder="Write an update..." class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
-                    <div class="flex flex-col gap-2">
-                        <select v-model="updateForm.source" class="rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
-                            <option value="manual">Manual</option>
-                            <option value="ai">AI</option>
-                        </select>
-                        <button @click="addUpdate" class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560]">Post</button>
+                <div class="relative">
+                    <div class="flex gap-3">
+                        <div class="flex-1 relative">
+                            <textarea
+                                ref="updateTextarea"
+                                v-model="updateForm.content"
+                                @input="onUpdateInput"
+                                @keydown.escape="showMentionDropdown = false"
+                                rows="3"
+                                placeholder="Write an update... Use @name to mention someone"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                            />
+                            <!-- @mention dropdown -->
+                            <div v-if="showMentionDropdown && mentionSuggestions.length" class="absolute left-0 bottom-full mb-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg z-20 max-h-48 overflow-y-auto">
+                                <button
+                                    v-for="m in mentionSuggestions"
+                                    :key="m.id"
+                                    @mousedown.prevent="insertMention(m)"
+                                    class="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-[#f5f0ff] transition-colors"
+                                >
+                                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#e8ddf0] text-[10px] font-bold text-[#4e1a77]">{{ m.name.charAt(0).toUpperCase() }}</span>
+                                    <span class="text-gray-900">{{ m.name }}</span>
+                                    <span class="text-xs text-gray-400 capitalize ml-auto">{{ m.role }}</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <select v-model="updateForm.source" class="rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
+                                <option value="manual">Manual</option>
+                                <option value="ai">AI</option>
+                            </select>
+                            <button
+                                @click="addUpdate"
+                                :disabled="postingUpdate || !updateForm.content.trim()"
+                                class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <span v-if="postingUpdate">Posting...</span>
+                                <span v-else>Post</span>
+                            </button>
+                        </div>
                     </div>
+                    <p v-if="updateError" class="mt-2 text-sm text-red-600">{{ updateError }}</p>
                 </div>
             </div>
 
@@ -851,7 +957,8 @@ const statusColors = {
                     <p
                         class="text-sm whitespace-pre-wrap"
                         :class="u.source === 'system' ? 'text-gray-500 italic' : 'text-gray-700'"
-                    >{{ u.content }}</p>
+                        v-html="highlightMentions(u.content)"
+                    ></p>
                 </div>
                 <p v-if="!localUpdates?.length" class="text-center text-sm text-gray-400 py-8">No updates yet</p>
             </div>

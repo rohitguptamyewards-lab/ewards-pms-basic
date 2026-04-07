@@ -24,7 +24,7 @@ class TransferController extends Controller
     public function store(Request $request, int $projectId): JsonResponse
     {
         $role = auth()->user()->role->value ?? auth()->user()->role;
-        abort_unless(in_array($role, ['manager', 'analyst_head']), 403);
+        abort_unless(in_array($role, ['manager', 'analyst_head', 'analyst']), 403);
 
         $data = $request->validate([
             'to_user' => ['required', 'integer', 'exists:team_members,id'],

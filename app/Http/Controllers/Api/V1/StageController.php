@@ -109,6 +109,23 @@ class StageController extends Controller
                     ));
                 }
             }
+
+            // When project goes LIVE: notify all managers, analyst_heads, and senior_developers
+            if ($newStage === 'live') {
+                $admins = DB::table('team_members')
+                    ->whereIn('role', ['manager', 'analyst_head', 'senior_developer'])
+                    ->whereNull('deleted_at')
+                    ->where('is_active', true)
+                    ->get();
+
+                foreach ($admins as $admin) {
+                    if ($admin->email) {
+                        Mail::to($admin->email)->send(new StageChanged(
+                            $project->name, $project->id, $newStage, $changedBy
+                        ));
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             \Log::warning("Stage change email failed: " . $e->getMessage());
         }
