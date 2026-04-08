@@ -303,7 +303,6 @@ function projectDotColor(projectId) {
 }
 
 // --- Filter state ---
-const showFilters = ref(false);
 const filterForm = ref({ ...props.filters });
 
 function applyFilters() {
@@ -489,45 +488,35 @@ const selectedProjectName = computed(() => {
             </div>
         </div>
 
-        <!-- ===================== WEEK HEADER + FILTERS ===================== -->
-        <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-3">
-                <h2 class="text-base font-bold text-gray-900">This week</h2>
-                <button
-                    v-if="canViewAllWorklogs"
-                    @click="showFilters = !showFilters"
-                    class="rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
-                >
-                    <span v-if="!showFilters">Filters</span>
-                    <span v-else>Hide filters</span>
-                </button>
+        <!-- ===================== FILTERS BAR (privileged roles) ===================== -->
+        <div v-if="canViewAllWorklogs" class="rounded-xl border border-gray-200 bg-white shadow-sm mb-4 overflow-hidden">
+            <div class="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-white to-[#f5f0ff]/30 border-b border-gray-100">
+                <svg class="h-4 w-4 text-[#4e1a77]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                </svg>
+                <span class="text-sm font-semibold text-gray-900">Filters</span>
+                <span v-if="filterForm.user_id || filterForm.project_id || filterForm.date_from || filterForm.date_to" class="rounded-full bg-[#4e1a77] px-1.5 py-0.5 text-[9px] font-bold text-white">Active</span>
             </div>
-            <div class="text-right">
-                <span class="text-sm text-gray-500">Total: </span>
-                <span class="font-mono text-base font-bold text-[#4e1a77]">{{ weekTotalFormatted() }}</span>
-            </div>
-        </div>
-
-        <!-- Filters Panel -->
-        <div v-if="showFilters && canViewAllWorklogs" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm mb-4">
-            <div class="flex flex-wrap gap-3 items-end">
-                <div>
+            <div class="flex flex-wrap gap-3 items-end p-4">
+                <div class="min-w-[180px]">
                     <label class="block text-xs font-medium text-gray-500 mb-1">Team Member</label>
                     <select
                         v-model="filterForm.user_id"
-                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                        @change="applyFilters"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
                     >
-                        <option value="">All</option>
+                        <option value="">All Members</option>
                         <option v-for="m in teamMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
                     </select>
                 </div>
-                <div>
+                <div class="min-w-[180px]">
                     <label class="block text-xs font-medium text-gray-500 mb-1">Project</label>
                     <select
                         v-model="filterForm.project_id"
-                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                        @change="applyFilters"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
                     >
-                        <option value="">All</option>
+                        <option value="">All Projects</option>
                         <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
                 </div>
@@ -549,16 +538,26 @@ const selectedProjectName = computed(() => {
                 </div>
                 <button
                     @click="applyFilters"
-                    class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560]"
+                    class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560] transition-colors"
                 >
                     Apply
                 </button>
                 <button
+                    v-if="filterForm.user_id || filterForm.project_id || filterForm.date_from || filterForm.date_to"
                     @click="clearFilters"
-                    class="rounded-lg px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+                    class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                    Clear
+                    Clear All
                 </button>
+            </div>
+        </div>
+
+        <!-- ===================== WEEK HEADER ===================== -->
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-gray-900">This week</h2>
+            <div class="text-right">
+                <span class="text-sm text-gray-500">Total: </span>
+                <span class="font-mono text-base font-bold text-[#4e1a77]">{{ weekTotalFormatted() }}</span>
             </div>
         </div>
 
