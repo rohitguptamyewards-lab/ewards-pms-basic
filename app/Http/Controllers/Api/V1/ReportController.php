@@ -29,6 +29,14 @@ class ReportController extends Controller
             ->orderByDesc('projects.created_at')
             ->get();
 
+        $projects = $projects->map(function ($project) {
+            $project->progress_percent = $this->calculateProjectProgress(
+                $project->current_stage ?? null,
+                $project->status ?? null
+            );
+            return $project;
+        });
+
         if ($request->wantsJson()) {
             return response()->json($projects);
         }
@@ -76,7 +84,8 @@ class ReportController extends Controller
     public function dashboard(Request $request)
     {
         $role = $this->authRole();
-        abort_unless(in_array($role, ['manager', 'analyst_head', 'analyst']), 403);
+        abort_unless($this->canAccessDashboard($role), 403);
+        $canViewSensitiveSections = $this->canViewSensitiveDashboardSections($role);
 
         // 1. All projects with timeline data for Gantt
         $projects = DB::table('projects')
@@ -111,58 +120,64 @@ class ReportController extends Controller
             ->orderBy('project_planners.due_date')
             ->get();
 
-        // 3. Project-wise employee worklog summary
-        $projectWorklogs = DB::table('work_logs')
-            ->join('projects', 'work_logs.project_id', '=', 'projects.id')
-            ->join('team_members', 'work_logs.user_id', '=', 'team_members.id')
-            ->select(
-                'projects.id as project_id', 'projects.name as project_name',
-                'team_members.id as user_id', 'team_members.name as user_name',
-                DB::raw('SUM(work_logs.hours_spent) as total_hours'),
-                DB::raw('COUNT(*) as log_count'),
-                DB::raw('MIN(work_logs.log_date) as first_log'),
-                DB::raw('MAX(work_logs.log_date) as last_log')
-            )
-            ->whereNull('work_logs.deleted_at')
-            ->whereNull('projects.deleted_at')
-            ->groupBy('projects.id', 'projects.name', 'team_members.id', 'team_members.name')
-            ->orderBy('projects.name')
-            ->orderByDesc(DB::raw('SUM(work_logs.hours_spent)'))
-            ->get();
+        $projectWorklogs = collect();
+        $teamUtilization = collect();
+        $recentLogs = collect();
 
-        // 4. Team member utilization (last 30 days)
-        $thirtyDaysAgo = now()->subDays(30)->toDateString();
-        $sevenDaysAgo = now()->subDays(7)->toDateString();
-        $teamUtilization = DB::table('team_members')
-            ->select(
-                'team_members.id', 'team_members.name', 'team_members.role',
-                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as month_hours"),
-                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$sevenDaysAgo}') as week_hours"),
-                DB::raw("(SELECT COUNT(DISTINCT wl.project_id) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as active_projects")
-            )
-            ->whereNull('team_members.deleted_at')
-            ->where('team_members.is_active', true)
-            ->orderBy('team_members.name')
-            ->get();
+        if ($canViewSensitiveSections) {
+            // 3. Project-wise employee worklog summary
+            $projectWorklogs = DB::table('work_logs')
+                ->join('projects', 'work_logs.project_id', '=', 'projects.id')
+                ->join('team_members', 'work_logs.user_id', '=', 'team_members.id')
+                ->select(
+                    'projects.id as project_id', 'projects.name as project_name',
+                    'team_members.id as user_id', 'team_members.name as user_name',
+                    DB::raw('SUM(work_logs.hours_spent) as total_hours'),
+                    DB::raw('COUNT(*) as log_count'),
+                    DB::raw('MIN(work_logs.log_date) as first_log'),
+                    DB::raw('MAX(work_logs.log_date) as last_log')
+                )
+                ->whereNull('work_logs.deleted_at')
+                ->whereNull('projects.deleted_at')
+                ->groupBy('projects.id', 'projects.name', 'team_members.id', 'team_members.name')
+                ->orderBy('projects.name')
+                ->orderByDesc(DB::raw('SUM(work_logs.hours_spent)'))
+                ->get();
 
-        // 5. Recent work logs (last 7 days) for activity feed
-        $recentLogs = DB::table('work_logs')
-            ->join('team_members', 'work_logs.user_id', '=', 'team_members.id')
-            ->join('projects', 'work_logs.project_id', '=', 'projects.id')
-            ->select(
-                'work_logs.*',
-                'team_members.name as user_name',
-                'projects.name as project_name'
-            )
-            ->whereNull('work_logs.deleted_at')
-            ->where('work_logs.log_date', '>=', now()->subDays(7)->toDateString())
-            ->orderByDesc('work_logs.log_date')
-            ->orderByDesc('work_logs.created_at')
-            ->limit(50)
-            ->get();
+            // 4. Team member utilization (last 30 days)
+            $thirtyDaysAgo = now()->subDays(30)->toDateString();
+            $sevenDaysAgo = now()->subDays(7)->toDateString();
+            $teamUtilization = DB::table('team_members')
+                ->select(
+                    'team_members.id', 'team_members.name', 'team_members.role',
+                    DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as month_hours"),
+                    DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$sevenDaysAgo}') as week_hours"),
+                    DB::raw("(SELECT COUNT(DISTINCT wl.project_id) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as active_projects")
+                )
+                ->whereNull('team_members.deleted_at')
+                ->where('team_members.is_active', true)
+                ->orderBy('team_members.name')
+                ->get();
+
+            // 5. Recent work logs (last 7 days) for activity feed
+            $recentLogs = DB::table('work_logs')
+                ->join('team_members', 'work_logs.user_id', '=', 'team_members.id')
+                ->join('projects', 'work_logs.project_id', '=', 'projects.id')
+                ->select(
+                    'work_logs.*',
+                    'team_members.name as user_name',
+                    'projects.name as project_name'
+                )
+                ->whereNull('work_logs.deleted_at')
+                ->where('work_logs.log_date', '>=', now()->subDays(7)->toDateString())
+                ->orderByDesc('work_logs.log_date')
+                ->orderByDesc('work_logs.created_at')
+                ->limit(50)
+                ->get();
+        }
 
         if ($request->wantsJson()) {
-            return response()->json(compact('projects', 'deadlines', 'projectWorklogs', 'teamUtilization', 'recentLogs'));
+            return response()->json(compact('projects', 'deadlines', 'projectWorklogs', 'teamUtilization', 'recentLogs', 'canViewSensitiveSections'));
         }
 
         return Inertia::render('Reports/Dashboard', [
@@ -171,6 +186,7 @@ class ReportController extends Controller
             'projectWorklogs'  => $projectWorklogs,
             'teamUtilization'  => $teamUtilization,
             'recentLogs'       => $recentLogs,
+            'canViewSensitiveSections' => $canViewSensitiveSections,
         ]);
     }
 
@@ -179,6 +195,9 @@ class ReportController extends Controller
      */
     public function projectWorklogs(Request $request, int $projectId)
     {
+        $role = $this->authRole();
+        abort_unless($this->canViewSensitiveDashboardSections($role), 403);
+
         $worklogs = DB::table('work_logs')
             ->join('team_members', 'work_logs.user_id', '=', 'team_members.id')
             ->select(
@@ -224,7 +243,7 @@ class ReportController extends Controller
     public function memberWorklogs(Request $request, int $memberId)
     {
         $role = $this->authRole();
-        abort_unless(in_array($role, ['manager', 'analyst_head', 'senior_developer']), 403);
+        abort_unless($this->canViewSensitiveDashboardSections($role), 403);
 
         $member = DB::table('team_members')->where('id', $memberId)->first();
         if (!$member) abort(404);
@@ -308,5 +327,50 @@ class ReportController extends Controller
     {
         $role = auth()->user()->role;
         return $role instanceof \App\Enums\Role ? $role->value : (string) $role;
+    }
+
+    private function canAccessDashboard(string $role): bool
+    {
+        return in_array($role, ['manager', 'analyst_head', 'analyst', 'senior_developer'], true);
+    }
+
+    private function canViewSensitiveDashboardSections(string $role): bool
+    {
+        return in_array($role, ['manager', 'analyst_head', 'senior_developer'], true);
+    }
+
+    private function calculateProjectProgress(?string $currentStage, ?string $status): int
+    {
+        if ($status === 'completed' || in_array($currentStage, [
+            'live',
+            'yet_to_announce_on_group',
+            'yet_to_put_on_cron',
+            'ticket_raised_for_revenue',
+        ], true)) {
+            return 100;
+        }
+
+        if (in_array($currentStage, [
+            'ready_to_go_for_live',
+            'live_testing_yet_to_start',
+            'live_testing_wip',
+            'bugs_reported_live',
+            'bug_fixing_wip',
+            'bugs_fixed',
+        ], true)) {
+            return 66;
+        }
+
+        if (in_array($currentStage, [
+            'ready_for_internal',
+            'testing_wip_internal',
+            'bugs_reported_test_internal',
+            'bugs_reported_testing',
+            'bugs_reported_internal',
+        ], true)) {
+            return 33;
+        }
+
+        return 0;
     }
 }

@@ -18,6 +18,7 @@ const page = usePage();
 const role = computed(() => page.props.auth?.user?.role);
 const canCreate = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
 const isManagerOrAnalyst = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
+const canEditPriority = computed(() => ['manager', 'analyst_head', 'analyst', 'senior_developer'].includes(role.value));
 
 // ── Stage Category Filter ──────────────────────────────
 const stageCategoryFilter = ref('');
@@ -89,6 +90,7 @@ async function loadTeamMembers() {
 
 // Inline person change
 const editingCell = ref(null); // e.g. '3-analyst_id'
+const editingPriorityProjectId = ref(null);
 
 function startEditing(projectId, field) {
     loadTeamMembers();
@@ -108,6 +110,27 @@ async function changeAssignment(project, field, newValue) {
 
 function isEditing(projectId, field) {
     return editingCell.value === `${projectId}-${field}`;
+}
+
+function isEditingPriority(projectId) {
+    return editingPriorityProjectId.value === projectId;
+}
+
+function startEditingPriority(projectId) {
+    if (!canEditPriority.value) return;
+    editingPriorityProjectId.value = projectId;
+}
+
+async function changePriority(project, newPriority) {
+    editingPriorityProjectId.value = null;
+    if (!newPriority || newPriority === project.priority) return;
+
+    try {
+        await axios.put(`/api/v1/projects/${project.id}`, { priority: newPriority });
+        router.reload({ only: ['projects'] });
+    } catch (e) {
+        console.error('Priority update failed', e);
+    }
 }
 
 // ── Inline Stage Change ────────────────────────────────
@@ -431,7 +454,31 @@ const workTypeOptions = [
                         </td>
 
                         <!-- Priority -->
-                        <td class="px-4 py-3"><PriorityBadge :priority="p.priority" /></td>
+                        <td class="px-4 py-3">
+                            <template v-if="isEditingPriority(p.id)">
+                                <select
+                                    :value="p.priority"
+                                    @change="changePriority(p, $event.target.value)"
+                                    @blur="editingPriorityProjectId = null"
+                                    class="rounded border border-[#4e1a77] px-2 py-1 text-xs focus:ring-1 focus:ring-[#4e1a77]"
+                                    autofocus
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </template>
+                            <template v-else>
+                                <div
+                                    class="inline-block"
+                                    :class="{ 'cursor-pointer': canEditPriority }"
+                                    @click="startEditingPriority(p.id)"
+                                >
+                                    <PriorityBadge :priority="p.priority" />
+                                </div>
+                            </template>
+                        </td>
 
                         <!-- Planners -->
                         <td class="px-4 py-3">

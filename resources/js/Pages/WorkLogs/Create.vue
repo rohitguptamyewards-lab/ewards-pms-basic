@@ -9,9 +9,16 @@ const props = defineProps({
     projects: { type: [Array, Object], default: () => [] },
     lastEndTime: { type: String, default: null },
 });
+const CUSTOM_PROJECT_VALUE = '__new_project__';
+const projectsList = computed(() => {
+    if (Array.isArray(props.projects)) return props.projects;
+    if (Array.isArray(props.projects?.data)) return props.projects.data;
+    return [];
+});
 
 const form = useForm({
     project_id: '',
+    project_name: '',
     log_date: new Date().toISOString().split('T')[0],
     start_time: props.lastEndTime ? props.lastEndTime.substring(0, 5) : '',
     end_time: '',
@@ -29,11 +36,30 @@ const calculatedHours = computed(() => {
     return (diff / 60).toFixed(2);
 });
 
+const canSubmitProjectSelection = computed(() => {
+    if (!form.project_id) return false;
+    if (form.project_id === CUSTOM_PROJECT_VALUE) {
+        return !!form.project_name?.trim();
+    }
+    return true;
+});
+
 function submit() {
-    form.transform(data => ({
-        ...data,
-        project_id: parseInt(data.project_id),
-    })).post('/work-logs');
+    form.transform(data => {
+        if (data.project_id === CUSTOM_PROJECT_VALUE) {
+            return {
+                ...data,
+                project_id: null,
+                project_name: data.project_name.trim(),
+            };
+        }
+
+        return {
+            ...data,
+            project_id: parseInt(data.project_id),
+            project_name: '',
+        };
+    }).post('/work-logs');
 }
 </script>
 
@@ -56,11 +82,21 @@ function submit() {
                 <!-- Project -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Project *</label>
-                    <select v-model="form.project_id" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" :class="{ 'border-red-400 bg-red-50': form.errors.project_id }">
+                    <select v-model="form.project_id" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" :class="{ 'border-red-400 bg-red-50': form.errors.project_id || form.errors.project_name }">
                         <option value="">Select project</option>
-                        <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+                        <option :value="CUSTOM_PROJECT_VALUE">+ Add custom project</option>
+                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
                     <p v-if="form.errors.project_id" class="mt-1 text-xs text-red-500">{{ form.errors.project_id }}</p>
+                    <p v-if="form.errors.project_name" class="mt-1 text-xs text-red-500">{{ form.errors.project_name }}</p>
+                    <input
+                        v-if="form.project_id === CUSTOM_PROJECT_VALUE"
+                        v-model="form.project_name"
+                        type="text"
+                        placeholder="Enter new project name"
+                        class="mt-2 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                        :class="{ 'border-red-400 bg-red-50': form.errors.project_name }"
+                    />
                 </div>
 
                 <!-- Date -->
@@ -115,7 +151,7 @@ function submit() {
                 <!-- Actions -->
                 <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
                     <Link href="/work-logs" class="rounded-lg px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</Link>
-                    <button type="submit" :disabled="form.processing" class="rounded-lg bg-[#4e1a77] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d1560] disabled:opacity-50">
+                    <button type="submit" :disabled="form.processing || !canSubmitProjectSelection" class="rounded-lg bg-[#4e1a77] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d1560] disabled:opacity-50">
                         Log Work
                     </button>
                 </div>

@@ -16,7 +16,13 @@ const props = defineProps({
 
 const page = usePage();
 const role = computed(() => page.props.auth?.user?.role);
-const isManagerOrAnalyst = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
+const canViewAllWorklogs = computed(() => ['manager', 'analyst_head', 'senior_developer'].includes(role.value));
+const CUSTOM_PROJECT_VALUE = '__new_project__';
+const projectsList = computed(() => {
+    if (Array.isArray(props.projects)) return props.projects;
+    if (Array.isArray(props.projects?.data)) return props.projects.data;
+    return [];
+});
 
 // --- Mode: 'manual' or 'timer' ---
 const mode = ref('manual');
@@ -24,6 +30,7 @@ const mode = ref('manual');
 // --- Form state ---
 const form = ref({
     project_id: '',
+    project_name: '',
     log_date: new Date().toISOString().split('T')[0],
     start_time: '',
     end_time: '',
@@ -61,6 +68,8 @@ function todayString() {
 }
 
 function startTimer() {
+    if (!canSubmitProjectSelection.value) return;
+
     timerRunning.value = true;
     timerStartedAt.value = new Date();
     timerElapsed.value = 0;
@@ -103,23 +112,57 @@ const calculatedDuration = computed(() => {
     return formatElapsed(sec);
 });
 
+const canSubmitProjectSelection = computed(() => {
+    if (!form.value.project_id) return false;
+    if (form.value.project_id === CUSTOM_PROJECT_VALUE) {
+        return !!form.value.project_name?.trim();
+    }
+    return true;
+});
+
+function buildWorkLogPayload() {
+    if (form.value.project_id === CUSTOM_PROJECT_VALUE) {
+        return {
+            project_name: form.value.project_name.trim(),
+            log_date: form.value.log_date,
+            start_time: form.value.start_time,
+            end_time: form.value.end_time,
+            note: form.value.note,
+            blocker: form.value.blocker,
+        };
+    }
+
+    return {
+        project_id: parseInt(form.value.project_id, 10),
+        log_date: form.value.log_date,
+        start_time: form.value.start_time,
+        end_time: form.value.end_time,
+        note: form.value.note,
+        blocker: form.value.blocker,
+    };
+}
+
 // --- Add entry ---
 async function addEntry() {
-    if (!form.value.project_id || !form.value.start_time || !form.value.end_time) return;
+    if (!canSubmitProjectSelection.value || !form.value.start_time || !form.value.end_time) return;
     submitting.value = true;
     formErrors.value = {};
 
     try {
-        await axios.post('/api/v1/work-logs', form.value);
+        const payload = buildWorkLogPayload();
+        const { data } = await axios.post('/api/v1/work-logs', payload);
+
+        const nextProjectId = data?.project_id ?? form.value.project_id;
         form.value = {
-            project_id: form.value.project_id,
+            project_id: nextProjectId,
+            project_name: '',
             log_date: new Date().toISOString().split('T')[0],
             start_time: '',
             end_time: '',
             note: '',
             blocker: '',
         };
-        router.reload({ only: ['workLogs', 'weekTotal'] });
+        router.reload({ only: ['workLogs', 'weekTotal', 'projects'] });
     } catch (err) {
         if (err.response?.status === 422) {
             formErrors.value = err.response.data.errors || {};
@@ -228,7 +271,11 @@ function resumeLog(log) {
 // --- Selected project name for display ---
 const selectedProjectName = computed(() => {
     if (!form.value.project_id) return '';
-    const p = (Array.isArray(props.projects) ? props.projects : []).find(
+    if (form.value.project_id === CUSTOM_PROJECT_VALUE) {
+        return form.value.project_name || '';
+    }
+
+    const p = projectsList.value.find(
         proj => proj.id == form.value.project_id
     );
     return p ? p.name : '';
@@ -278,11 +325,22 @@ const selectedProjectName = computed(() => {
                     <select
                         v-model="form.project_id"
                         class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
-                        :class="{ 'border-red-400': formErrors.project_id }"
+                        :class="{ 'border-red-400': formErrors.project_id || formErrors.project_name }"
                     >
                         <option value="">Project</option>
-                        <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+                        <option :value="CUSTOM_PROJECT_VALUE">+ Add custom project</option>
+                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
+                </div>
+
+                <div v-if="form.project_id === CUSTOM_PROJECT_VALUE" class="shrink-0 lg:min-w-[240px]">
+                    <input
+                        v-model="form.project_name"
+                        type="text"
+                        placeholder="Enter new project name"
+                        class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                        :class="{ 'border-red-400': formErrors.project_name }"
+                    />
                 </div>
 
                 <!-- Divider (desktop) -->
@@ -319,7 +377,7 @@ const selectedProjectName = computed(() => {
                     <!-- ADD button -->
                     <button
                         @click="addEntry"
-                        :disabled="submitting || !form.project_id || !form.start_time || !form.end_time"
+                        :disabled="submitting || !canSubmitProjectSelection || !form.start_time || !form.end_time"
                         class="shrink-0 rounded-lg bg-[#4e1a77] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#3d1560] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         ADD
@@ -340,7 +398,7 @@ const selectedProjectName = computed(() => {
                         <button
                             v-if="!timerRunning"
                             @click="startTimer"
-                            :disabled="!form.project_id"
+                            :disabled="!canSubmitProjectSelection"
                             class="shrink-0 rounded-lg bg-[#4e1a77] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#3d1560] disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             START
@@ -367,7 +425,7 @@ const selectedProjectName = computed(() => {
             <div class="flex items-center gap-3">
                 <h2 class="text-base font-bold text-gray-900">This week</h2>
                 <button
-                    v-if="isManagerOrAnalyst"
+                    v-if="canViewAllWorklogs"
                     @click="showFilters = !showFilters"
                     class="rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
                 >
@@ -382,7 +440,7 @@ const selectedProjectName = computed(() => {
         </div>
 
         <!-- Filters Panel -->
-        <div v-if="showFilters && isManagerOrAnalyst" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm mb-4">
+        <div v-if="showFilters && canViewAllWorklogs" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm mb-4">
             <div class="flex flex-wrap gap-3 items-end">
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1">Team Member</label>
@@ -401,7 +459,7 @@ const selectedProjectName = computed(() => {
                         class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
                     >
                         <option value="">All</option>
-                        <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
                 </div>
                 <div>
@@ -466,7 +524,7 @@ const selectedProjectName = computed(() => {
                                 ></span>
                                 {{ log.project_name }}
                             </Link>
-                            <span v-if="isManagerOrAnalyst && log.user_name" class="hidden md:inline text-[10px] text-gray-400 shrink-0">{{ log.user_name }}</span>
+                            <span v-if="canViewAllWorklogs && log.user_name" class="hidden md:inline text-[10px] text-gray-400 shrink-0">{{ log.user_name }}</span>
                         </div>
 
                         <!-- Right side: tag icon, time range, calendar, duration, play, 3-dot -->

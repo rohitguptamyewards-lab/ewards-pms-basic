@@ -25,6 +25,8 @@ const props = defineProps({
 const page = usePage();
 const role = computed(() => page.props.auth?.user?.role);
 const isManagerOrAnalyst = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
+const canEditPriority = computed(() => ['manager', 'analyst_head', 'analyst', 'senior_developer'].includes(role.value));
+const canViewProjectWorklogReports = computed(() => ['manager', 'analyst_head', 'senior_developer'].includes(role.value));
 
 // Parse tags - handle both JSON strings and arrays
 const parsedTags = computed(() => {
@@ -38,16 +40,24 @@ const parsedTags = computed(() => {
 });
 
 const activeTab = ref('overview');
-const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'planner', label: 'Planner' },
-    { key: 'report', label: 'Report' },
-    { key: 'updates', label: 'Updates' },
-    { key: 'workers', label: 'Workers' },
-    { key: 'attachments', label: 'Attachments' },
-    { key: 'tickets', label: 'Tickets' },
-    { key: 'blockers', label: 'Blockers' },
-];
+const tabs = computed(() => {
+    const allTabs = [
+        { key: 'overview', label: 'Overview' },
+        { key: 'planner', label: 'Planner' },
+        { key: 'report', label: 'Report' },
+        { key: 'updates', label: 'Updates' },
+        { key: 'workers', label: 'Workers' },
+        { key: 'attachments', label: 'Attachments' },
+        { key: 'tickets', label: 'Tickets' },
+        { key: 'blockers', label: 'Blockers' },
+    ];
+
+    if (canViewProjectWorklogReports.value) {
+        return allTabs;
+    }
+
+    return allTabs.filter(tab => tab.key !== 'report');
+});
 
 // Local reactive state
 const localPlanners = ref([...(props.planners || [])]);
@@ -93,6 +103,7 @@ const reportLoading = ref(false);
 const expandedEmployee = ref(null);
 
 async function loadReportData() {
+    if (!canViewProjectWorklogReports.value) return;
     if (reportData.value) return;
     reportLoading.value = true;
     try {
@@ -131,6 +142,11 @@ function toggleEmployee(userId) {
 const editingField = ref(null);
 
 function startEditField(field) {
+    if (field === 'priority') {
+        if (canEditPriority.value) editingField.value = field;
+        return;
+    }
+
     if (isManagerOrAnalyst.value) editingField.value = field;
 }
 
@@ -548,7 +564,7 @@ const statusColors = {
                     <StageBadge v-if="project?.current_stage" :stage="project.current_stage" />
                     <StatusBadge :status="project?.status" type="project" />
                     <!-- Editable Priority -->
-                    <template v-if="editingField === 'priority'">
+                    <template v-if="canEditPriority && editingField === 'priority'">
                         <select
                             :value="project?.priority"
                             @change="updateProjectField('priority', $event.target.value)"
@@ -562,7 +578,7 @@ const statusColors = {
                             <option value="critical">Critical</option>
                         </select>
                     </template>
-                    <div v-else @click="startEditField('priority')" :class="{ 'cursor-pointer': isManagerOrAnalyst }">
+                    <div v-else @click="canEditPriority && startEditField('priority')" :class="{ 'cursor-pointer': canEditPriority }">
                         <PriorityBadge :priority="project?.priority" />
                     </div>
                 </div>
@@ -743,7 +759,7 @@ const statusColors = {
         </div>
 
         <!-- ═══════ REPORT TAB ═══════ -->
-        <div v-if="activeTab === 'report'" class="space-y-4">
+        <div v-if="canViewProjectWorklogReports && activeTab === 'report'" class="space-y-4">
             <!-- Loading -->
             <div v-if="reportLoading" class="flex items-center justify-center py-12">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4e1a77]"></div>

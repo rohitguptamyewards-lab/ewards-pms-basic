@@ -13,9 +13,18 @@ const props = defineProps({
 });
 
 /* ── helpers ── */
-function progressPercent(done, total) {
+function plannerProgressPercent(done, total) {
     if (!total) return 0;
     return Math.round((done / total) * 100);
+}
+
+function progressPercent(project) {
+    const progress = Number(project?.progress_percent);
+    if (Number.isFinite(progress)) {
+        return Math.max(0, Math.min(100, Math.round(progress)));
+    }
+
+    return plannerProgressPercent(project?.planner_done_count || 0, project?.planner_count || 0);
 }
 
 function hoursDisplay(h) {
@@ -311,10 +320,10 @@ function formatLabel(str) {
                                 <div class="w-20 bg-gray-200 rounded-full h-1.5">
                                     <div
                                         class="bg-[#4e1a77] h-1.5 rounded-full transition-all"
-                                        :style="{ width: progressPercent(p.planner_done_count, p.planner_count) + '%' }"
+                                        :style="{ width: progressPercent(p) + '%' }"
                                     ></div>
                                 </div>
-                                <span class="text-xs text-gray-600 whitespace-nowrap">{{ p.planner_done_count || 0 }}/{{ p.planner_count || 0 }}</span>
+                                <span class="text-xs text-gray-600 whitespace-nowrap">{{ progressPercent(p) }}%</span>
                             </div>
                         </td>
                     </tr>

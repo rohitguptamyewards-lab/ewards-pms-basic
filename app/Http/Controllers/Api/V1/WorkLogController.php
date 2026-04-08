@@ -21,8 +21,8 @@ class WorkLogController extends Controller
         $role = $this->authRole();
         $filters = $request->only(['user_id', 'project_id', 'date_from', 'date_to', 'status']);
 
-        // Non-managers can only see their own logs
-        if (!in_array($role, ['manager', 'analyst_head', 'analyst'])) {
+        // Only select roles can view everyone's logs
+        if (!$this->canViewAllWorklogs($role)) {
             $filters['user_id'] = $user->id;
         }
 
@@ -35,8 +35,8 @@ class WorkLogController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Get team members for filter dropdown (managers/analysts only)
-        $teamMembers = in_array($role, ['manager', 'analyst_head', 'analyst'])
+        // Get team members for filter dropdown (privileged roles only)
+        $teamMembers = $this->canViewAllWorklogs($role)
             ? DB::table('team_members')
                 ->select('id', 'name', 'role')
                 ->whereNull('deleted_at')
@@ -97,7 +97,13 @@ class WorkLogController extends Controller
     public function store(StoreWorkLogRequest $request)
     {
         $data = $request->validated();
-        $data['user_id'] = auth()->id();
+        $userId = auth()->id();
+        $data['user_id'] = $userId;
+
+        if (empty($data['project_id']) && !empty($data['project_name'])) {
+            $data['project_id'] = $this->findOrCreateCustomProject(trim($data['project_name']), $userId);
+        }
+        unset($data['project_name']);
 
         $id = $this->workLogRepository->create($data);
 
@@ -119,7 +125,7 @@ class WorkLogController extends Controller
 
         // Only own logs or manager
         $role = $this->authRole();
-        if ($log->user_id !== auth()->id() && !in_array($role, ['manager', 'analyst_head', 'analyst'])) {
+        if ($log->user_id !== auth()->id() && !$this->canViewAllWorklogs($role)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
@@ -147,7 +153,7 @@ class WorkLogController extends Controller
         }
 
         $role = $this->authRole();
-        if ($log->user_id !== auth()->id() && !in_array($role, ['manager', 'analyst_head', 'analyst'])) {
+        if ($log->user_id !== auth()->id() && !$this->canViewAllWorklogs($role)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
@@ -160,5 +166,48 @@ class WorkLogController extends Controller
     {
         $role = auth()->user()->role;
         return $role instanceof \App\Enums\Role ? $role->value : (string) $role;
+    }
+
+    private function canViewAllWorklogs(?string $role = null): bool
+    {
+        $effectiveRole = $role ?? $this->authRole();
+        return in_array($effectiveRole, ['manager', 'analyst_head', 'senior_developer'], true);
+    }
+
+    private function findOrCreateCustomProject(string $projectName, int $userId): int
+    {
+        $existingProjectId = DB::table('projects')
+            ->whereRaw('LOWER(name) = ?', [strtolower($projectName)])
+            ->whereNull('deleted_at')
+            ->value('id');
+
+        if ($existingProjectId) {
+            return (int) $existingProjectId;
+        }
+
+        $now = now();
+        $projectId = DB::table('projects')->insertGetId([
+            'name'             => $projectName,
+            'description'      => 'Created from Work Log',
+            'status'           => 'active',
+            'priority'         => 'medium',
+            'owner_id'         => $userId,
+            'created_by'       => $userId,
+            'work_type'        => 'other',
+            'task_type'        => 'other',
+            'custom_task_type' => 'worklog_custom_project',
+            'created_at'       => $now,
+            'updated_at'       => $now,
+        ]);
+
+        DB::table('project_workers')->insert([
+            'project_id'  => $projectId,
+            'user_id'     => $userId,
+            'role'        => 'owner',
+            'assigned_by' => $userId,
+            'assigned_at' => $now,
+        ]);
+
+        return (int) $projectId;
     }
 }

@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watchEffect } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatsCard from '@/Components/StatsCard.vue';
 import StageBadge from '@/Components/StageBadge.vue';
 import PriorityBadge from '@/Components/PriorityBadge.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 
 defineOptions({ layout: AppLayout });
 
@@ -15,9 +15,36 @@ const props = defineProps({
     projectWorklogs: { type: Array, default: () => [] },
     teamUtilization: { type: Array, default: () => [] },
     recentLogs: { type: Array, default: () => [] },
+    canViewSensitiveSections: { type: Boolean, default: false },
 });
 
+const page = usePage();
+const role = computed(() => page.props.auth?.user?.role);
+const canViewProjectsReport = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
+const canViewWorkersReport = computed(() => ['manager', 'analyst_head', 'senior_developer'].includes(role.value));
 const activeView = ref('timeline');
+const viewTabs = computed(() => {
+    const tabs = [
+        { key: 'timeline', label: 'Timeline / Gantt' },
+        { key: 'calendar', label: 'Calendar' },
+    ];
+
+    if (props.canViewSensitiveSections) {
+        tabs.push(
+            { key: 'worklogs', label: 'Project Worklogs' },
+            { key: 'utilization', label: 'Team Utilization' },
+            { key: 'activity', label: 'Activity Feed' },
+        );
+    }
+
+    return tabs;
+});
+
+watchEffect(() => {
+    if (!viewTabs.value.some(tab => tab.key === activeView.value)) {
+        activeView.value = 'timeline';
+    }
+});
 
 // ── Stats ──────────────────────────────────────────────
 const totalProjects = computed(() => props.projects.length);
@@ -243,8 +270,8 @@ const filteredGroupedWorklogs = computed(() => {
                 <p class="text-sm text-gray-500 mt-0.5">Overview of projects, timelines, and team performance</p>
             </div>
             <div class="flex gap-2">
-                <Link href="/reports/projects" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Projects Report</Link>
-                <Link href="/reports/workers" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Workers Report</Link>
+                <Link v-if="canViewProjectsReport" href="/reports/projects" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Projects Report</Link>
+                <Link v-if="canViewWorkersReport" href="/reports/workers" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Workers Report</Link>
             </div>
         </div>
 
@@ -272,13 +299,7 @@ const filteredGroupedWorklogs = computed(() => {
         <div class="border-b border-gray-200">
             <nav class="flex gap-0.5">
                 <button
-                    v-for="v in [
-                        { key: 'timeline', label: 'Timeline / Gantt' },
-                        { key: 'calendar', label: 'Calendar' },
-                        { key: 'worklogs', label: 'Project Worklogs' },
-                        { key: 'utilization', label: 'Team Utilization' },
-                        { key: 'activity', label: 'Activity Feed' },
-                    ]"
+                    v-for="v in viewTabs"
                     :key="v.key"
                     @click="activeView = v.key"
                     class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
@@ -425,7 +446,7 @@ const filteredGroupedWorklogs = computed(() => {
         </div>
 
         <!-- ═══════ PROJECT WORKLOGS VIEW ═══════ -->
-        <div v-if="activeView === 'worklogs'" class="space-y-4">
+        <div v-if="props.canViewSensitiveSections && activeView === 'worklogs'" class="space-y-4">
             <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-100 px-5 py-3.5">
                     <h2 class="text-sm font-semibold text-gray-900">Project-wise Employee Worklogs</h2>
@@ -493,7 +514,7 @@ const filteredGroupedWorklogs = computed(() => {
         </div>
 
         <!-- ═══════ TEAM UTILIZATION VIEW ═══════ -->
-        <div v-if="activeView === 'utilization'" class="space-y-4">
+        <div v-if="props.canViewSensitiveSections && activeView === 'utilization'" class="space-y-4">
             <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-100 px-5 py-3.5">
                     <h2 class="text-sm font-semibold text-gray-900">Team Utilization (Last 30 Days)</h2>
@@ -530,7 +551,7 @@ const filteredGroupedWorklogs = computed(() => {
         </div>
 
         <!-- ═══════ ACTIVITY FEED VIEW ═══════ -->
-        <div v-if="activeView === 'activity'" class="space-y-4">
+        <div v-if="props.canViewSensitiveSections && activeView === 'activity'" class="space-y-4">
             <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-100 px-5 py-3.5">
                     <h2 class="text-sm font-semibold text-gray-900">Recent Work Activity (Last 7 Days)</h2>
