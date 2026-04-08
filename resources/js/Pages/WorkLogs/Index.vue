@@ -214,6 +214,17 @@ function closeMenu() {
     openMenuId.value = null;
 }
 
+// --- Resume a log entry (start timer with same project + note) ---
+function resumeLog(log) {
+    mode.value = 'timer';
+    form.value.project_id = log.project_id;
+    form.value.note = log.note || '';
+    form.value.log_date = todayString();
+    if (!timerRunning.value) {
+        startTimer();
+    }
+}
+
 // --- Selected project name for display ---
 const selectedProjectName = computed(() => {
     if (!form.value.project_id) return '';
@@ -485,7 +496,11 @@ const selectedProjectName = computed(() => {
                             </span>
 
                             <!-- Play/resume icon -->
-                            <button class="hidden sm:flex h-7 w-7 items-center justify-center rounded-full text-[#4e1a77] hover:bg-[#4e1a77]/10 transition-colors" title="Start similar">
+                            <button
+                                @click.stop="resumeLog(log)"
+                                class="hidden sm:flex h-7 w-7 items-center justify-center rounded-full text-[#4e1a77] hover:bg-[#4e1a77]/10 transition-colors"
+                                title="Start similar"
+                            >
                                 <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M8 5.14v14l11-7-11-7z" />
                                 </svg>

@@ -14,7 +14,7 @@ class DashboardController extends Controller
         $user = auth()->user();
         $role = $user->role->value ?? $user->role;
 
-        if (in_array($role, ['manager', 'analyst'])) {
+        if (in_array($role, ['manager', 'analyst_head', 'analyst'])) {
             return $this->renderManagerDashboard();
         }
 

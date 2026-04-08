@@ -138,10 +138,19 @@ async function updateAssignment(field, value) {
     editingField.value = null;
     try {
         await axios.put(`/api/v1/projects/${props.project.id}`, { [field]: value ? parseInt(value) : null });
-        // Update local display
         window.location.reload();
     } catch (e) {
         console.error('Failed to update assignment', e);
+    }
+}
+
+async function updateProjectField(field, value) {
+    editingField.value = null;
+    try {
+        await axios.put(`/api/v1/projects/${props.project.id}`, { [field]: value });
+        window.location.reload();
+    } catch (e) {
+        console.error('Failed to update field', e);
     }
 }
 
@@ -538,7 +547,24 @@ const statusColors = {
                 <div class="flex flex-wrap items-center gap-2">
                     <StageBadge v-if="project?.current_stage" :stage="project.current_stage" />
                     <StatusBadge :status="project?.status" type="project" />
-                    <PriorityBadge :priority="project?.priority" />
+                    <!-- Editable Priority -->
+                    <template v-if="editingField === 'priority'">
+                        <select
+                            :value="project?.priority"
+                            @change="updateProjectField('priority', $event.target.value)"
+                            @blur="editingField = null"
+                            class="rounded-lg border border-[#4e1a77] px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-[#4e1a77]"
+                            autofocus
+                        >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </template>
+                    <div v-else @click="startEditField('priority')" :class="{ 'cursor-pointer': isManagerOrAnalyst }">
+                        <PriorityBadge :priority="project?.priority" />
+                    </div>
                 </div>
             </div>
         </div>

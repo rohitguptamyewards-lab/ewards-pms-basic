@@ -218,6 +218,19 @@ const statusColors = {
 const maxUtilHours = computed(() => {
     return Math.max(1, ...props.teamUtilization.map(t => parseFloat(t.month_hours || 0)));
 });
+
+// ── Project Filter ────────────────────────────────────
+const projectFilter = ref('');
+
+const filteredGanttProjects = computed(() => {
+    if (!projectFilter.value) return ganttProjects.value;
+    return ganttProjects.value.filter(p => p.id == projectFilter.value);
+});
+
+const filteredGroupedWorklogs = computed(() => {
+    if (!projectFilter.value) return groupedWorklogs.value;
+    return groupedWorklogs.value.filter(g => g.project_id == projectFilter.value);
+});
 </script>
 
 <template>
@@ -233,6 +246,18 @@ const maxUtilHours = computed(() => {
                 <Link href="/reports/projects" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Projects Report</Link>
                 <Link href="/reports/workers" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Workers Report</Link>
             </div>
+        </div>
+
+        <!-- Project Filter -->
+        <div class="flex items-center gap-3">
+            <label class="text-sm font-medium text-gray-600">Filter by Project:</label>
+            <select
+                v-model="projectFilter"
+                class="rounded-lg border border-gray-300 bg-white py-2 px-3 text-sm text-gray-700 focus:border-[#4e1a77] focus:outline-none focus:ring-1 focus:ring-[#4e1a77]"
+            >
+                <option value="">All Projects</option>
+                <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
         </div>
 
         <!-- Stats Row -->
@@ -294,7 +319,7 @@ const maxUtilHours = computed(() => {
                         </div>
 
                         <!-- Project rows -->
-                        <div v-for="p in ganttProjects" :key="p.id" class="flex items-center border-b border-gray-50 hover:bg-gray-50/50 group">
+                        <div v-for="p in filteredGanttProjects" :key="p.id" class="flex items-center border-b border-gray-50 hover:bg-gray-50/50 group">
                             <!-- Project label -->
                             <div class="w-52 shrink-0 px-4 py-2.5 border-r border-gray-100">
                                 <Link :href="`/projects/${p.id}`" class="text-xs font-medium text-[#4e1a77] group-hover:underline truncate block">{{ p.name }}</Link>
@@ -321,7 +346,7 @@ const maxUtilHours = computed(() => {
                             </div>
                         </div>
 
-                        <p v-if="!ganttProjects.length" class="px-5 py-8 text-center text-sm text-gray-400">No active projects to show</p>
+                        <p v-if="!filteredGanttProjects.length" class="px-5 py-8 text-center text-sm text-gray-400">No active projects to show</p>
                     </div>
                 </div>
             </div>
@@ -407,8 +432,8 @@ const maxUtilHours = computed(() => {
                     <p class="text-xs text-gray-400 mt-0.5">Hours logged per employee per project</p>
                 </div>
 
-                <div v-if="groupedWorklogs.length" class="divide-y divide-gray-100">
-                    <div v-for="group in groupedWorklogs" :key="group.project_id">
+                <div v-if="filteredGroupedWorklogs.length" class="divide-y divide-gray-100">
+                    <div v-for="group in filteredGroupedWorklogs" :key="group.project_id">
                         <!-- Project header -->
                         <div
                             class="flex items-center justify-between px-5 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors"

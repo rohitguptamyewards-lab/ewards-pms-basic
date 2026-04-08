@@ -72,8 +72,8 @@ const fileIcon = (name) => {
     return 'text-gray-500';
 };
 
-const analysts = computed(() => props.teamMembers.filter(m => m.role === 'analyst' || m.role === 'manager'));
-const developers = computed(() => props.teamMembers.filter(m => m.role === 'employee'));
+const analysts = computed(() => props.teamMembers.filter(m => ['analyst', 'analyst_head', 'manager'].includes(m.role)));
+const developers = computed(() => props.teamMembers.filter(m => ['employee', 'developer', 'senior_developer'].includes(m.role)));
 
 async function submit() {
     const data = {

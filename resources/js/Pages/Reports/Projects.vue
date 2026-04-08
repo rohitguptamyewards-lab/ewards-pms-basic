@@ -35,6 +35,7 @@ const search = ref('');
 const statusFilter = ref('');
 const priorityFilter = ref('');
 const workTypeFilter = ref('');
+const projectNameFilter = ref('');
 
 const allStatuses = computed(() => {
     const set = new Set();
@@ -80,6 +81,7 @@ const filteredProjects = computed(() => {
         const q = search.value.toLowerCase();
         list = list.filter(p => p.name?.toLowerCase().includes(q) || p.owner_name?.toLowerCase().includes(q));
     }
+    if (projectNameFilter.value) list = list.filter(p => p.id == projectNameFilter.value);
     if (statusFilter.value) list = list.filter(p => p.status === statusFilter.value);
     if (priorityFilter.value) list = list.filter(p => p.priority === priorityFilter.value);
     if (workTypeFilter.value) list = list.filter(p => p.work_type === workTypeFilter.value);
@@ -225,6 +227,13 @@ function formatLabel(str) {
                     class="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:border-[#4e1a77] focus:outline-none focus:ring-1 focus:ring-[#4e1a77]"
                 />
             </div>
+            <select
+                v-model="projectNameFilter"
+                class="rounded-lg border border-gray-300 bg-white py-2 px-3 text-sm text-gray-700 focus:border-[#4e1a77] focus:outline-none focus:ring-1 focus:ring-[#4e1a77]"
+            >
+                <option value="">All Projects</option>
+                <option v-for="p in (projects || [])" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
             <select
                 v-model="statusFilter"
                 class="rounded-lg border border-gray-300 bg-white py-2 px-3 text-sm text-gray-700 focus:border-[#4e1a77] focus:outline-none focus:ring-1 focus:ring-[#4e1a77]"
