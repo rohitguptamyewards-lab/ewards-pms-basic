@@ -54,10 +54,11 @@ class StageController extends Controller
             'created_at' => now(),
         ]);
 
-        // Send email notifications based on new stage
+        // Send email + in-app notifications based on new stage
         $project = DB::table('projects')->where('id', $projectId)->first();
         if ($project) {
             $this->notifyOnStageChange($project, $data['stage_name'], $userName);
+            $this->sendInAppStageNotifications($project, $data['stage_name'], $userName);
         }
 
         return response()->json(['message' => 'Stage updated']);
@@ -73,6 +74,38 @@ class StageController extends Controller
             ->get();
 
         return response()->json($history);
+    }
+
+    private function sendInAppStageNotifications(object $project, string $newStage, string $changedBy): void
+    {
+        $stageLabel = str_replace('_', ' ', ucwords($newStage, '_'));
+        $notifyIds = [];
+
+        // Collect all assigned users on the project (excluding the person who made the change)
+        foreach (['owner_id', 'analyst_id', 'developer_id', 'analyst_testing_id'] as $field) {
+            if (!empty($project->{$field}) && $project->{$field} != auth()->id()) {
+                $notifyIds[] = $project->{$field};
+            }
+        }
+
+        if ($newStage === 'live') {
+            $adminIds = DB::table('team_members')
+                ->whereIn('role', ['manager', 'analyst_head', 'senior_developer'])
+                ->whereNull('deleted_at')->where('is_active', true)
+                ->pluck('id')->toArray();
+            $notifyIds = array_merge($notifyIds, $adminIds);
+        }
+
+        $notifyIds = array_unique(array_filter($notifyIds));
+        if ($notifyIds) {
+            NotificationController::notifyMany(
+                $notifyIds,
+                'stage_change',
+                "Stage updated: {$project->name}",
+                "{$changedBy} moved \"{$project->name}\" to \"{$stageLabel}\"",
+                ['project_id' => $project->id, 'link' => "/projects/{$project->id}"]
+            );
+        }
     }
 
     private function notifyOnStageChange(object $project, string $newStage, string $changedBy): void

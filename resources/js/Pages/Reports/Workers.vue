@@ -117,6 +117,30 @@ function closeMemberDetail() {
     selectedMember.value = null;
     memberDetail.value = null;
 }
+
+/* ── CSV Export ── */
+function exportCSV() {
+    const headers = ['Name', 'Email', 'Role', 'Active', 'Total Hours', 'Month Hours', 'Week Hours', 'Current Projects', 'Joined'];
+    const rows = filteredWorkers.value.map(w => [
+        `"${(w.name || '').replace(/"/g, '""')}"`,
+        w.email || '',
+        w.role || '',
+        w.is_active ? 'Yes' : 'No',
+        (parseFloat(w.total_hours) || 0).toFixed(2),
+        (parseFloat(w.month_hours) || 0).toFixed(2),
+        (parseFloat(w.week_hours) || 0).toFixed(2),
+        w.current_projects ?? 0,
+        w.joined_date || '',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workers-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 </script>
 
 <template>
@@ -126,7 +150,18 @@ function closeMemberDetail() {
         <!-- Page header -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <h1 class="text-xl font-bold text-gray-900">Workers Report</h1>
-            <span class="text-sm text-gray-500">{{ filteredWorkers.length }} of {{ totalMembers }} members shown</span>
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">{{ filteredWorkers.length }} of {{ totalMembers }} members shown</span>
+                <button
+                    @click="exportCSV"
+                    class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#4e1a77] hover:text-[#4e1a77] transition-colors flex items-center gap-1.5"
+                >
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Export CSV
+                </button>
+            </div>
         </div>
 
         <!-- Summary cards -->

@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import axios from 'axios';
 
 const page = usePage();
 const url = computed(() => page.url);
@@ -10,6 +11,102 @@ const flash = computed(() => page.props.flash);
 
 const sidebarOpen = ref(false);
 
+// ── Dark Mode ──────────────────────────────
+const darkMode = ref(false);
+
+function initDarkMode() {
+    const stored = localStorage.getItem('pms-dark-mode');
+    darkMode.value = stored === 'true';
+    applyDarkMode();
+}
+
+function toggleDarkMode() {
+    darkMode.value = !darkMode.value;
+    localStorage.setItem('pms-dark-mode', darkMode.value);
+    applyDarkMode();
+}
+
+function applyDarkMode() {
+    if (darkMode.value) {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+}
+
+// ── Notifications ──────────────────────────
+const notifications = ref([]);
+const unreadCount = ref(0);
+const notifOpen = ref(false);
+let notifInterval = null;
+
+async function fetchNotifications() {
+    try {
+        const { data } = await axios.get('/api/v1/notifications');
+        notifications.value = data.notifications || [];
+        unreadCount.value = data.unread_count || 0;
+    } catch (e) { /* silent */ }
+}
+
+async function markRead(id) {
+    await axios.put(`/api/v1/notifications/${id}/read`);
+    const n = notifications.value.find(n => n.id === id);
+    if (n) n.read_at = new Date().toISOString();
+    unreadCount.value = Math.max(0, unreadCount.value - 1);
+}
+
+async function markAllRead() {
+    await axios.put('/api/v1/notifications/read-all');
+    notifications.value.forEach(n => { if (!n.read_at) n.read_at = new Date().toISOString(); });
+    unreadCount.value = 0;
+}
+
+function notifLink(n) {
+    try { return JSON.parse(n.data)?.link || '/'; } catch { return '/'; }
+}
+
+function notifClick(n) {
+    if (!n.read_at) markRead(n.id);
+    notifOpen.value = false;
+    const link = notifLink(n);
+    router.visit(link);
+}
+
+function timeAgo(dateStr) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+}
+
+const notifIcon = {
+    stage_change: 'M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z',
+    blocker: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z',
+    assignment: 'M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z',
+    mention: 'M16.5 12a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zm0 0c0 1.657 1.007 3 2.25 3S21 13.657 21 12a9 9 0 10-2.636 6.364M16.5 12V8.25',
+};
+
+const notifColor = {
+    stage_change: 'bg-blue-100 text-blue-600',
+    blocker: 'bg-red-100 text-red-600',
+    assignment: 'bg-green-100 text-green-600',
+    mention: 'bg-purple-100 text-purple-600',
+};
+
+onMounted(() => {
+    initDarkMode();
+    fetchNotifications();
+    notifInterval = setInterval(fetchNotifications, 30000);
+});
+
+onUnmounted(() => {
+    if (notifInterval) clearInterval(notifInterval);
+});
+
+// ── Navigation ─────────────────────────────
 function isActive(href) {
     if (!href) return false;
     if (href === '/') return url.value === '/';
@@ -71,11 +168,11 @@ const navItems = computed(() => {
 <template>
     <Head :title="$page.props.title || ''" />
 
-    <div class="flex h-screen overflow-hidden bg-gray-50">
+    <div class="flex h-screen overflow-hidden" :class="darkMode ? 'bg-gray-900' : 'bg-gray-50'">
         <!-- Sidebar -->
         <aside
-            class="fixed inset-y-0 left-0 z-30 flex w-56 flex-col bg-[#2c0f47] text-white transition-transform duration-200 lg:relative lg:translate-x-0"
-            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+            class="fixed inset-y-0 left-0 z-30 flex w-56 flex-col transition-transform duration-200 lg:relative lg:translate-x-0"
+            :class="[sidebarOpen ? 'translate-x-0' : '-translate-x-full', darkMode ? 'bg-[#1a0a2e] text-white' : 'bg-[#2c0f47] text-white']"
         >
             <!-- Logo -->
             <div class="flex h-14 items-center gap-2 border-b border-white/10 px-4">
@@ -131,20 +228,109 @@ const navItems = computed(() => {
         <!-- Main content -->
         <div class="flex flex-1 flex-col overflow-hidden">
             <!-- Top bar -->
-            <header class="flex h-14 items-center gap-3 border-b border-gray-200 bg-white px-4 shadow-sm">
-                <button @click="sidebarOpen = !sidebarOpen" class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 lg:hidden">
+            <header class="flex h-14 items-center gap-3 border-b px-4 shadow-sm" :class="darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'">
+                <button @click="sidebarOpen = !sidebarOpen" class="rounded-lg p-1.5 lg:hidden" :class="darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                     </svg>
                 </button>
                 <div class="flex-1" />
-                <!-- User info in top bar -->
-                <div class="flex items-center gap-3">
-                    <span class="hidden sm:inline text-xs text-gray-400">{{ user?.email }}</span>
-                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#4e1a77] text-xs font-bold text-white">
-                        {{ user?.name?.charAt(0)?.toUpperCase() || '?' }}
+
+                <!-- Top bar actions -->
+                <div class="flex items-center gap-2">
+                    <!-- Dark Mode Toggle -->
+                    <button
+                        @click="toggleDarkMode"
+                        class="rounded-lg p-2 transition-colors"
+                        :class="darkMode ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-100'"
+                        :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+                    >
+                        <!-- Sun icon (dark mode active) -->
+                        <svg v-if="darkMode" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                        </svg>
+                        <!-- Moon icon (light mode active) -->
+                        <svg v-else class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                        </svg>
+                    </button>
+
+                    <!-- Notification Bell -->
+                    <div class="relative">
+                        <button
+                            @click="notifOpen = !notifOpen"
+                            class="relative rounded-lg p-2 transition-colors"
+                            :class="darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-100'"
+                        >
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                            </svg>
+                            <!-- Unread badge -->
+                            <span
+                                v-if="unreadCount > 0"
+                                class="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2"
+                                :class="darkMode ? 'ring-gray-800' : 'ring-white'"
+                            >
+                                {{ unreadCount > 9 ? '9+' : unreadCount }}
+                            </span>
+                        </button>
+
+                        <!-- Notification Dropdown -->
+                        <div
+                            v-if="notifOpen"
+                            class="absolute right-0 top-12 z-50 w-80 rounded-xl border shadow-xl overflow-hidden"
+                            :class="darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'"
+                        >
+                            <div class="flex items-center justify-between px-4 py-3 border-b" :class="darkMode ? 'border-gray-700' : 'border-gray-100'">
+                                <h3 class="text-sm font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'">Notifications</h3>
+                                <button
+                                    v-if="unreadCount > 0"
+                                    @click="markAllRead"
+                                    class="text-[11px] font-medium text-[#4e1a77] hover:underline"
+                                >
+                                    Mark all read
+                                </button>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto divide-y" :class="darkMode ? 'divide-gray-700' : 'divide-gray-100'">
+                                <div
+                                    v-for="n in notifications.slice(0, 15)"
+                                    :key="n.id"
+                                    @click="notifClick(n)"
+                                    class="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors"
+                                    :class="[
+                                        !n.read_at ? (darkMode ? 'bg-[#4e1a77]/10' : 'bg-[#f5f0ff]/50') : '',
+                                        darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                                    ]"
+                                >
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg shrink-0" :class="notifColor[n.type] || 'bg-gray-100 text-gray-500'">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" :d="notifIcon[n.type] || notifIcon.assignment" />
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs font-semibold truncate" :class="darkMode ? 'text-white' : 'text-gray-900'">{{ n.title }}</p>
+                                        <p class="text-[11px] mt-0.5 line-clamp-2" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">{{ n.message }}</p>
+                                        <p class="text-[10px] mt-1" :class="darkMode ? 'text-gray-500' : 'text-gray-400'">{{ timeAgo(n.created_at) }}</p>
+                                    </div>
+                                    <div v-if="!n.read_at" class="mt-2 h-2 w-2 rounded-full bg-[#4e1a77] shrink-0"></div>
+                                </div>
+                            </div>
+                            <div v-if="!notifications.length" class="px-4 py-8 text-center">
+                                <svg class="mx-auto h-8 w-8" :class="darkMode ? 'text-gray-600' : 'text-gray-300'" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                                </svg>
+                                <p class="mt-2 text-xs" :class="darkMode ? 'text-gray-500' : 'text-gray-400'">No notifications yet</p>
+                            </div>
+                        </div>
                     </div>
-                    <span class="hidden sm:inline text-sm font-medium text-gray-700">{{ user?.name }}</span>
+
+                    <!-- User info -->
+                    <div class="flex items-center gap-2 ml-1">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#4e1a77] text-xs font-bold text-white">
+                            {{ user?.name?.charAt(0)?.toUpperCase() || '?' }}
+                        </div>
+                        <span class="hidden sm:inline text-sm font-medium" :class="darkMode ? 'text-gray-200' : 'text-gray-700'">{{ user?.name }}</span>
+                    </div>
                 </div>
             </header>
 
@@ -157,7 +343,7 @@ const navItems = computed(() => {
             </div>
 
             <!-- Page Content -->
-            <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+            <main class="flex-1 overflow-y-auto p-4 lg:p-6" @click="notifOpen = false">
                 <slot />
             </main>
         </div>

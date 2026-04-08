@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\BlockerController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\WorkLogController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.')->middleware(['auth'])->group(function () {
@@ -76,6 +77,11 @@ Route::prefix('v1')->name('api.')->middleware(['auth'])->group(function () {
     // Team Members
     Route::put('team-members/{id}', [\App\Http\Controllers\Api\V1\TeamMemberController::class, 'update']);
     Route::post('team-members/{id}/toggle-active', [\App\Http\Controllers\Api\V1\TeamMemberController::class, 'toggleActive']);
+
+    // Notifications
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::put('notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::put('notifications/read-all', [NotificationController::class, 'markAllRead']);
 
     // Dropdowns
     Route::get('team-members', function () {

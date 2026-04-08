@@ -175,6 +175,30 @@ const priorityBarColor = {
 function formatLabel(str) {
     return (str || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
+
+/* ── CSV Export ── */
+function exportCSV() {
+    const headers = ['Project', 'Status', 'Priority', 'Stage', 'Work Type', 'Owner', 'Hours', 'Contributors', 'Progress %'];
+    const rows = filteredProjects.value.map(p => [
+        `"${(p.name || '').replace(/"/g, '""')}"`,
+        p.status || '',
+        p.priority || '',
+        formatLabel(p.current_stage),
+        formatLabel(p.work_type),
+        p.owner_name || '',
+        (parseFloat(p.total_hours) || 0).toFixed(2),
+        p.contributor_count ?? 0,
+        progressPercent(p),
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `projects-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 </script>
 
 <template>
@@ -186,6 +210,15 @@ function formatLabel(str) {
             <h1 class="text-xl font-bold text-gray-900">Projects Report</h1>
             <div class="flex items-center gap-2">
                 <span class="text-sm text-gray-500 mr-2">{{ filteredProjects.length }} of {{ totalProjects }} projects</span>
+                <button
+                    @click="exportCSV"
+                    class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#4e1a77] hover:text-[#4e1a77] transition-colors flex items-center gap-1.5"
+                >
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Export CSV
+                </button>
                 <button
                     @click="viewMode = 'table'"
                     :class="viewMode === 'table' ? 'bg-[#4e1a77] text-white' : 'bg-white text-gray-600 border border-gray-300 hover:border-[#4e1a77]'"

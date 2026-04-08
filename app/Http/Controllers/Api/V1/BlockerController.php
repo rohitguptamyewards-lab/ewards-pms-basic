@@ -42,6 +42,23 @@ class BlockerController extends Controller
             ->where('project_blockers.id', $id)
             ->first();
 
+        // In-app notification to project owner
+        $project = DB::table('projects')->where('id', $projectId)->first();
+        if ($project) {
+            $notifyIds = array_filter([
+                $project->owner_id, $project->analyst_id,
+            ], fn($uid) => $uid && $uid != auth()->id());
+            if ($notifyIds) {
+                NotificationController::notifyMany(
+                    $notifyIds,
+                    'blocker',
+                    "New blocker: {$project->name}",
+                    auth()->user()->name . " reported a blocker: " . \Illuminate\Support\Str::limit($data['description'], 80),
+                    ['project_id' => $projectId, 'link' => "/projects/{$projectId}"]
+                );
+            }
+        }
+
         return response()->json($blocker, 201);
     }
 
