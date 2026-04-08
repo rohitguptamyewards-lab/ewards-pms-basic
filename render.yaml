@@ -1,0 +1,66 @@
+databases:
+  - name: ewards-pms-db
+    plan: free
+    databaseName: ewards_pms
+    user: ewards_pms_user
+
+services:
+  - type: web
+    name: ewards-pms-basic
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: APP_NAME
+        value: "eWards PMS Basic"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_URL
+        value: "https://ewards-pms-basic.onrender.com"
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: ewards-pms-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ewards-pms-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: ewards-pms-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: ewards-pms-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ewards-pms-db
+          property: password
+      - key: DB_SSLMODE
+        value: require
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: SESSION_ENCRYPT
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: PORT
+        value: "10000"
+      - key: MAIL_MAILER
+        value: brevo
+      - key: MAIL_FROM_ADDRESS
+        value: "project.tool.ewards@gmail.com"
+      - key: MAIL_FROM_NAME
+        value: "eWards PMS"
+      - key: BREVO_API_KEY
+        sync: false
