@@ -1,9 +1,14 @@
-FROM php:8.2-cli
+FROM php:8.3-cli
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpq-dev libzip-dev nodejs npm \
+    git curl zip unzip libpq-dev libzip-dev \
     && docker-php-ext-install pdo_pgsql pgsql zip bcmath \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 (npm included)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
@@ -28,8 +33,11 @@ RUN composer dump-autoload --optimize
 RUN mkdir -p storage/framework/{sessions,views,cache/data} storage/logs bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# Create public/storage symlink
+RUN php artisan storage:link 2>/dev/null || true
+
 # Expose port (Render uses $PORT)
 EXPOSE 10000
 
-# Start command
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+# Start command - run migrations then serve
+CMD php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}

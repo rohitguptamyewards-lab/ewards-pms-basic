@@ -131,12 +131,14 @@ class ReportController extends Controller
             ->get();
 
         // 4. Team member utilization (last 30 days)
+        $thirtyDaysAgo = now()->subDays(30)->toDateString();
+        $sevenDaysAgo = now()->subDays(7)->toDateString();
         $teamUtilization = DB::table('team_members')
             ->select(
                 'team_members.id', 'team_members.name', 'team_members.role',
-                DB::raw('(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= date(\'now\', \'-30 days\')) as month_hours'),
-                DB::raw('(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= date(\'now\', \'-7 days\')) as week_hours'),
-                DB::raw('(SELECT COUNT(DISTINCT wl.project_id) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= date(\'now\', \'-30 days\')) as active_projects')
+                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as month_hours"),
+                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$sevenDaysAgo}') as week_hours"),
+                DB::raw("(SELECT COUNT(DISTINCT wl.project_id) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as active_projects")
             )
             ->whereNull('team_members.deleted_at')
             ->where('team_members.is_active', true)

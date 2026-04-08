@@ -4,16 +4,17 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
+    autoDeploy: true
     envVars:
       - key: APP_NAME
-        value: "eWards PMS"
+        value: "eWards PMS Basic"
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
         value: "false"
-      - key: APP_URL
-        sync: false
       - key: APP_KEY
+        sync: false
+      - key: APP_URL
         sync: false
       - key: DB_CONNECTION
         value: pgsql
@@ -32,9 +33,11 @@ services:
       - key: NEON_ENDPOINT_ID
         sync: false
       - key: SESSION_DRIVER
-        value: file
+        value: cookie
+      - key: SESSION_ENCRYPT
+        value: "true"
       - key: CACHE_STORE
-        value: file
+        value: database
       - key: LOG_CHANNEL
         value: stderr
       - key: PORT
