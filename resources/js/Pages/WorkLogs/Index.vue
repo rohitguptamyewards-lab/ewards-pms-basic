@@ -40,6 +40,19 @@ const form = ref({
 
 const formErrors = ref({});
 const submitting = ref(false);
+const editErrors = ref({});
+const editSubmitting = ref(false);
+const editOpen = ref(false);
+const editForm = ref({
+    id: null,
+    project_id: '',
+    log_date: '',
+    start_time: '',
+    end_time: '',
+    status: 'done',
+    note: '',
+    blocker: '',
+});
 
 // --- Timer state ---
 const timerRunning = ref(false);
@@ -177,6 +190,62 @@ async function deleteEntry(id) {
     if (!confirm('Delete this work log?')) return;
     await axios.delete(`/api/v1/work-logs/${id}`);
     router.reload({ only: ['workLogs', 'weekTotal'] });
+}
+
+function openEdit(log) {
+    editErrors.value = {};
+    editForm.value = {
+        id: log.id,
+        project_id: log.project_id ? String(log.project_id) : '',
+        log_date: (log.log_date || '').split('T')[0],
+        start_time: (log.start_time || '').slice(0, 5),
+        end_time: (log.end_time || '').slice(0, 5),
+        status: log.status || 'done',
+        note: log.note || '',
+        blocker: log.blocker || '',
+    };
+    editOpen.value = true;
+}
+
+function closeEdit() {
+    editOpen.value = false;
+    editErrors.value = {};
+}
+
+const editDuration = computed(() => {
+    const sec = calcDurationSeconds(editForm.value.start_time, editForm.value.end_time);
+    if (sec <= 0) return '';
+    return formatElapsed(sec);
+});
+
+async function saveEdit() {
+    if (!editForm.value.id || !editForm.value.project_id || !editForm.value.log_date || !editForm.value.start_time || !editForm.value.end_time) {
+        return;
+    }
+
+    editSubmitting.value = true;
+    editErrors.value = {};
+
+    try {
+        await axios.put(`/api/v1/work-logs/${editForm.value.id}`, {
+            project_id: parseInt(editForm.value.project_id, 10),
+            log_date: editForm.value.log_date,
+            start_time: editForm.value.start_time,
+            end_time: editForm.value.end_time,
+            status: editForm.value.status,
+            note: editForm.value.note,
+            blocker: editForm.value.blocker,
+        });
+
+        closeEdit();
+        router.reload({ only: ['workLogs', 'weekTotal'] });
+    } catch (err) {
+        if (err.response?.status === 422) {
+            editErrors.value = err.response.data.errors || {};
+        }
+    } finally {
+        editSubmitting.value = false;
+    }
 }
 
 // --- Group logs by date ---
@@ -582,6 +651,16 @@ const selectedProjectName = computed(() => {
                                     class="absolute right-0 top-8 z-10 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
                                 >
                                     <button
+                                        @click.stop="openEdit(log); closeMenu()"
+                                        class="flex w-full items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                                    >
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.651-1.651a2.121 2.121 0 113 3L10.582 16.768a4.5 4.5 0 01-1.897 1.13L6 18l.102-2.685a4.5 4.5 0 011.13-1.897L16.862 4.487z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 7.125L16.875 4.5" />
+                                        </svg>
+                                        Edit
+                                    </button>
+                                    <button
                                         @click.stop="deleteEntry(log.id); closeMenu()"
                                         class="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
                                     >
@@ -594,6 +673,126 @@ const selectedProjectName = computed(() => {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <div
+            v-if="editOpen"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            @click.self="closeEdit"
+        >
+            <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl">
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+                    <h3 class="text-sm font-semibold text-gray-900">Edit Work Log</h3>
+                    <button @click="closeEdit" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-4 px-5 py-4">
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Project</label>
+                        <select
+                            v-model="editForm.project_id"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                            :class="{ 'border-red-400': editErrors.project_id }"
+                        >
+                            <option value="">Select project</option>
+                            <option v-for="p in projectsList" :key="p.id" :value="String(p.id)">{{ p.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-500">Date</label>
+                            <input
+                                v-model="editForm.log_date"
+                                type="date"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                                :class="{ 'border-red-400': editErrors.log_date }"
+                            />
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-500">Start</label>
+                            <input
+                                v-model="editForm.start_time"
+                                type="time"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                                :class="{ 'border-red-400': editErrors.start_time }"
+                            />
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-500">End</label>
+                            <input
+                                v-model="editForm.end_time"
+                                type="time"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                                :class="{ 'border-red-400': editErrors.end_time }"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg border border-[#e8ddf0] bg-[#f5f0ff] px-3 py-2">
+                        <span class="text-xs text-gray-600">Duration: </span>
+                        <span class="font-mono text-sm font-semibold text-[#4e1a77]">{{ editDuration || '00:00:00' }}</span>
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Status</label>
+                        <select
+                            v-model="editForm.status"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                        >
+                            <option value="done">Done</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="blocked">Blocked</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Note</label>
+                        <textarea
+                            v-model="editForm.note"
+                            rows="2"
+                            class="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                            :class="{ 'border-red-400': editErrors.note }"
+                        />
+                    </div>
+
+                    <div v-if="editForm.status === 'blocked'">
+                        <label class="mb-1 block text-xs font-medium text-red-600">Blocker</label>
+                        <textarea
+                            v-model="editForm.blocker"
+                            rows="2"
+                            class="w-full resize-none rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                            :class="{ 'border-red-400': editErrors.blocker }"
+                        />
+                    </div>
+
+                    <div v-if="Object.keys(editErrors).length" class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+                        <span v-for="(errs, field) in editErrors" :key="field">{{ errs[0] }} </span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3">
+                    <button
+                        @click="closeEdit"
+                        class="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        @click="saveEdit"
+                        :disabled="editSubmitting || !editForm.project_id || !editForm.start_time || !editForm.end_time || !editForm.log_date"
+                        class="rounded-lg bg-[#4e1a77] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#3d1560] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <span v-if="editSubmitting">Saving...</span>
+                        <span v-else>Save</span>
+                    </button>
                 </div>
             </div>
         </div>

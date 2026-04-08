@@ -79,12 +79,22 @@ class WorkLogRepository
 
     public function update(int $id, array $data): bool
     {
-        // Auto-calculate hours_spent
-        if (!empty($data['start_time']) && !empty($data['end_time'])) {
-            $start = strtotime($data['start_time']);
-            $end = strtotime($data['end_time']);
-            if ($end > $start) {
-                $data['hours_spent'] = round(($end - $start) / 3600, 2);
+        // Auto-calculate hours_spent using effective start/end (incoming + existing)
+        $existing = DB::table('work_logs')
+            ->select('start_time', 'end_time')
+            ->where('id', $id)
+            ->first();
+
+        if ($existing) {
+            $effectiveStart = $data['start_time'] ?? $existing->start_time;
+            $effectiveEnd = $data['end_time'] ?? $existing->end_time;
+
+            if (!empty($effectiveStart) && !empty($effectiveEnd)) {
+                $start = strtotime($effectiveStart);
+                $end = strtotime($effectiveEnd);
+                if ($end > $start) {
+                    $data['hours_spent'] = round(($end - $start) / 3600, 2);
+                }
             }
         }
 

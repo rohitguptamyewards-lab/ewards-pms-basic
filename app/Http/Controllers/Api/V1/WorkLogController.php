@@ -139,6 +139,17 @@ class WorkLogController extends Controller
             'blocker'    => ['nullable', 'string'],
         ]);
 
+        $effectiveStart = $data['start_time'] ?? $log->start_time;
+        $effectiveEnd = $data['end_time'] ?? $log->end_time;
+        if (!empty($effectiveStart) && !empty($effectiveEnd) && strtotime($effectiveEnd) <= strtotime($effectiveStart)) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'end_time' => ['End time must be after start time.'],
+                ],
+            ], 422);
+        }
+
         $this->workLogRepository->update($id, $data);
 
         return response()->json($this->workLogRepository->findById($id));
