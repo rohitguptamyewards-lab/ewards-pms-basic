@@ -397,7 +397,7 @@ const selectedProjectName = computed(() => {
                         :class="{ 'border-red-400': formErrors.project_id || formErrors.project_name }"
                     >
                         <option value="">Project</option>
-                        <option :value="CUSTOM_PROJECT_VALUE">+ Add custom project</option>
+                        <option :value="CUSTOM_PROJECT_VALUE">+ Add custom work</option>
                         <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
                 </div>
@@ -406,7 +406,7 @@ const selectedProjectName = computed(() => {
                     <input
                         v-model="form.project_name"
                         type="text"
-                        placeholder="Enter new project name"
+                        placeholder="Enter custom work name"
                         class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
                         :class="{ 'border-red-400': formErrors.project_name }"
                     />

@@ -81,7 +81,7 @@ class ProjectController extends Controller
         return Inertia::render('Projects/Index', [
             'projects' => $projects,
             'filters'  => $uiFilters,
-            'title'    => 'Custom Projects For Worklog',
+            'title'    => 'Custom Work',
             'basePath' => '/projects/custom-worklog',
             'boardPath' => '',
             'showBoardToggle' => false,

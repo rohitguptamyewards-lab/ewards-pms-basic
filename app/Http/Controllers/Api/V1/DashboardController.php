@@ -23,9 +23,15 @@ class DashboardController extends Controller
 
     private function renderManagerDashboard()
     {
-        $totalProjects = DB::table('projects')->whereNull('deleted_at')->count();
-        $activeProjects = DB::table('projects')->whereNull('deleted_at')->where('status', 'active')->count();
-        $onHoldProjects = DB::table('projects')->whereNull('deleted_at')->where('status', 'on_hold')->count();
+        $totalProjects = DB::table('projects')->whereNull('deleted_at')
+            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', 'worklog_custom_project'))
+            ->count();
+        $activeProjects = DB::table('projects')->whereNull('deleted_at')->where('status', 'active')
+            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', 'worklog_custom_project'))
+            ->count();
+        $onHoldProjects = DB::table('projects')->whereNull('deleted_at')->where('status', 'on_hold')
+            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', 'worklog_custom_project'))
+            ->count();
 
         $activeBlockers = DB::table('project_blockers')
             ->join('projects', 'project_blockers.project_id', '=', 'projects.id')
@@ -57,6 +63,7 @@ class DashboardController extends Controller
                 DB::raw('(SELECT stage_name FROM project_stages WHERE project_stages.project_id = projects.id ORDER BY project_stages.created_at DESC LIMIT 1) as current_stage')
             )
             ->whereNull('projects.deleted_at')
+            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', 'worklog_custom_project'))
             ->orderByDesc('projects.updated_at')
             ->limit(10)
             ->get();
@@ -94,6 +101,7 @@ class DashboardController extends Controller
                   ->orWhere('projects.developer_id', $userId);
             })
             ->whereNull('projects.deleted_at')
+            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', 'worklog_custom_project'))
             ->distinct()
             ->orderByDesc('projects.updated_at')
             ->get();

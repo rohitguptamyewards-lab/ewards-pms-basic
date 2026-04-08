@@ -26,6 +26,7 @@ class ReportController extends Controller
                 DB::raw('(SELECT COUNT(DISTINCT pw.user_id) FROM project_workers pw WHERE pw.project_id = projects.id) as contributor_count')
             )
             ->whereNull('projects.deleted_at')
+            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', 'worklog_custom_project'))
             ->orderByDesc('projects.created_at')
             ->get();
 
@@ -87,7 +88,7 @@ class ReportController extends Controller
         abort_unless($this->canAccessDashboard($role), 403);
         $canViewSensitiveSections = $this->canViewSensitiveDashboardSections($role);
 
-        // 1. All projects with timeline data for Gantt
+        // 1. All projects with timeline data for Gantt (excluding custom works)
         $projects = DB::table('projects')
             ->leftJoin('team_members as owner', 'projects.owner_id', '=', 'owner.id')
             ->select(
@@ -102,6 +103,7 @@ class ReportController extends Controller
                 DB::raw('(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.project_id = projects.id AND wl.deleted_at IS NULL) as total_hours')
             )
             ->whereNull('projects.deleted_at')
+            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', 'worklog_custom_project'))
             ->orderByDesc('projects.created_at')
             ->get();
 
