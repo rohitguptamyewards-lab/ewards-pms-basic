@@ -22,7 +22,7 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # Copy package files and build frontend
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npm run build
 
