@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         // Add joined_date to team_members
-        if (!Schema::hasColumn('team_members', 'joined_date')) {
+        if (Schema::hasTable('team_members') && !Schema::hasColumn('team_members', 'joined_date')) {
             Schema::table('team_members', function (Blueprint $table) {
                 $table->date('joined_date')->nullable()->after('role');
             });
@@ -25,7 +25,7 @@ return new class extends Migration {
 
     public function down(): void
     {
-        if (Schema::hasColumn('team_members', 'joined_date')) {
+        if (Schema::hasTable('team_members') && Schema::hasColumn('team_members', 'joined_date')) {
             Schema::table('team_members', function (Blueprint $table) {
                 $table->dropColumn('joined_date');
             });

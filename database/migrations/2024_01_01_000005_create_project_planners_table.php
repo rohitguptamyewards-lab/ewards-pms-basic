@@ -6,20 +6,22 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('project_planners', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('project_id')->constrained()->cascadeOnDelete();
-            $table->string('title');
-            $table->text('description')->nullable();
-            $table->boolean('milestone_flag')->default(false);
-            $table->unsignedBigInteger('assigned_to')->nullable();
-            $table->date('due_date')->nullable();
-            $table->string('status')->default('pending');
-            $table->integer('order_index')->default(0);
-            $table->timestamps();
+        if (!Schema::hasTable('project_planners')) {
+            Schema::create('project_planners', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('project_id')->constrained()->cascadeOnDelete();
+                $table->string('title');
+                $table->text('description')->nullable();
+                $table->boolean('milestone_flag')->default(false);
+                $table->unsignedBigInteger('assigned_to')->nullable();
+                $table->date('due_date')->nullable();
+                $table->string('status')->default('pending');
+                $table->integer('order_index')->default(0);
+                $table->timestamps();
 
-            $table->index('project_id');
-        });
+                $table->index('project_id');
+            });
+        }
     }
 
     public function down(): void

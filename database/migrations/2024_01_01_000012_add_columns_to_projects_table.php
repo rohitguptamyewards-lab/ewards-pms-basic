@@ -6,30 +6,46 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->string('work_type')->nullable()->after('priority');
-            $table->string('task_type')->nullable()->after('work_type');
-            $table->text('ticket_link')->nullable()->after('task_type');
-            $table->unsignedBigInteger('analyst_id')->nullable()->after('owner_id');
-            $table->unsignedBigInteger('analyst_testing_id')->nullable()->after('analyst_id');
-            $table->unsignedBigInteger('developer_id')->nullable()->after('analyst_testing_id');
-            $table->text('document_link')->nullable()->after('linked_project_ids');
-            $table->text('ai_chat_link')->nullable()->after('document_link');
-
-            $table->index('analyst_id');
-            $table->index('analyst_testing_id');
-            $table->index('developer_id');
-        });
+        if (Schema::hasTable('projects')) {
+            Schema::table('projects', function (Blueprint $table) {
+                if (!Schema::hasColumn('projects', 'work_type')) {
+                    $table->string('work_type')->nullable()->after('priority');
+                }
+                if (!Schema::hasColumn('projects', 'task_type')) {
+                    $table->string('task_type')->nullable()->after('work_type');
+                }
+                if (!Schema::hasColumn('projects', 'ticket_link')) {
+                    $table->text('ticket_link')->nullable()->after('task_type');
+                }
+                if (!Schema::hasColumn('projects', 'analyst_id')) {
+                    $table->unsignedBigInteger('analyst_id')->nullable()->after('owner_id');
+                }
+                if (!Schema::hasColumn('projects', 'analyst_testing_id')) {
+                    $table->unsignedBigInteger('analyst_testing_id')->nullable()->after('analyst_id');
+                }
+                if (!Schema::hasColumn('projects', 'developer_id')) {
+                    $table->unsignedBigInteger('developer_id')->nullable()->after('analyst_testing_id');
+                }
+                if (!Schema::hasColumn('projects', 'document_link')) {
+                    $table->text('document_link')->nullable()->after('linked_project_ids');
+                }
+                if (!Schema::hasColumn('projects', 'ai_chat_link')) {
+                    $table->text('ai_chat_link')->nullable()->after('document_link');
+                }
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->dropColumn([
-                'work_type', 'task_type', 'ticket_link',
-                'analyst_id', 'analyst_testing_id', 'developer_id',
-                'document_link', 'ai_chat_link',
-            ]);
-        });
+        if (Schema::hasTable('projects')) {
+            Schema::table('projects', function (Blueprint $table) {
+                $table->dropColumn([
+                    'work_type', 'task_type', 'ticket_link',
+                    'analyst_id', 'analyst_testing_id', 'developer_id',
+                    'document_link', 'ai_chat_link',
+                ]);
+            });
+        }
     }
 };

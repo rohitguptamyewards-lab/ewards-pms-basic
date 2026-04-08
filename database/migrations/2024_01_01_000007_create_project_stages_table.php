@@ -6,15 +6,17 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('project_stages', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('project_id')->constrained()->cascadeOnDelete();
-            $table->string('stage_name')->index();
-            $table->unsignedBigInteger('updated_by')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('project_stages')) {
+            Schema::create('project_stages', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('project_id')->constrained()->cascadeOnDelete();
+                $table->string('stage_name')->index();
+                $table->unsignedBigInteger('updated_by')->nullable();
+                $table->timestamps();
 
-            $table->index('project_id');
-        });
+                $table->index('project_id');
+            });
+        }
     }
 
     public function down(): void
