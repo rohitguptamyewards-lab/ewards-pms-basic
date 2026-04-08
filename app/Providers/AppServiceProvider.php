@@ -12,13 +12,16 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Neon PostgreSQL endpoint injection
+        // Neon PostgreSQL endpoint injection (only for direct connections, not pooler)
         $this->app->bind('db.connector.pgsql', function () {
             return new class extends \Illuminate\Database\Connectors\PostgresConnector {
                 protected function getDsn(array $config)
                 {
                     $dsn = parent::getDsn($config);
-                    if ($endpoint = $config['neon_endpoint'] ?? null) {
+                    $host = $config['host'] ?? '';
+                    $endpoint = $config['neon_endpoint'] ?? null;
+                    // Skip endpoint injection for pooler connections (SNI handles routing)
+                    if ($endpoint && !str_contains($host, '-pooler')) {
                         $dsn .= ";options='endpoint={$endpoint}'";
                     }
                     return $dsn;

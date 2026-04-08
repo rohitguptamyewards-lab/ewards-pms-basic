@@ -30,8 +30,6 @@ services:
         sync: false
       - key: DB_SSLMODE
         value: require
-      - key: NEON_ENDPOINT_ID
-        sync: false
       - key: SESSION_DRIVER
         value: cookie
       - key: SESSION_ENCRYPT
