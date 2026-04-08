@@ -16,6 +16,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Projects
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+    Route::get('/projects/custom-worklog', [ProjectController::class, 'customWorklogIndex'])->name('projects.custom-worklog');
     Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
     Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
     Route::get('/projects/board', [ProjectController::class, 'board'])->name('projects.board');

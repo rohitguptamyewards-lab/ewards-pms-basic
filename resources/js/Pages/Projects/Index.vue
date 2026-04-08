@@ -12,6 +12,11 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     projects: { type: Object, default: () => ({ data: [], links: [] }) },
     filters: { type: Object, default: () => ({}) },
+    title: { type: String, default: 'Projects' },
+    basePath: { type: String, default: '/projects' },
+    boardPath: { type: String, default: '/projects/board' },
+    showBoardToggle: { type: Boolean, default: true },
+    showCreateButton: { type: Boolean, default: true },
 });
 
 const page = usePage();
@@ -68,13 +73,13 @@ const filterForm = ref({
 function applyFilters() {
     const params = {};
     Object.entries(filterForm.value).forEach(([k, v]) => { if (v) params[k] = v; });
-    router.get('/projects', params, { preserveState: true, replace: true });
+    router.get(props.basePath, params, { preserveState: true, replace: true });
 }
 
 function clearFilters() {
     filterForm.value = { search: '', status: '', priority: '', work_type: '' };
     stageCategoryFilter.value = '';
-    router.get('/projects', {}, { preserveState: true, replace: true });
+    router.get(props.basePath, {}, { preserveState: true, replace: true });
 }
 
 // Team members for inline assignment (loaded on demand)
@@ -210,20 +215,20 @@ const workTypeOptions = [
 </script>
 
 <template>
-    <Head title="Projects" />
+    <Head :title="title" />
 
     <div class="space-y-4">
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <h1 class="text-xl font-bold text-gray-900">Projects</h1>
-                <div class="flex rounded-lg border border-gray-300 overflow-hidden">
+                <h1 class="text-xl font-bold text-gray-900">{{ title }}</h1>
+                <div v-if="showBoardToggle" class="flex rounded-lg border border-gray-300 overflow-hidden">
                     <span class="bg-[#4e1a77] px-3 py-1.5 text-xs font-medium text-white">Table</span>
-                    <Link href="/projects/board" class="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Board</Link>
+                    <Link :href="boardPath" class="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Board</Link>
                 </div>
             </div>
             <Link
-                v-if="canCreate"
+                v-if="canCreate && showCreateButton"
                 href="/projects/create"
                 class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#3d1560] transition-colors"
             >
@@ -526,7 +531,7 @@ const workTypeOptions = [
                 </template>
                 <template v-else>
                     No projects found.
-                    <Link v-if="canCreate" href="/projects/create" class="text-[#4e1a77] underline ml-1">Create one</Link>
+                    <Link v-if="canCreate && showCreateButton" href="/projects/create" class="text-[#4e1a77] underline ml-1">Create one</Link>
                 </template>
             </div>
         </div>

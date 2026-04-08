@@ -24,7 +24,8 @@ class ProjectController extends Controller
     {
         $user = auth()->user();
         $role = $this->authRole();
-        $filters = $request->only(['status', 'priority', 'search', 'owner_id', 'work_type']);
+        $uiFilters = $request->only(['status', 'priority', 'search', 'owner_id', 'work_type']);
+        $filters = array_merge($uiFilters, ['project_scope' => 'default']);
 
         $projects = in_array($role, ['manager', 'analyst_head', 'analyst'])
             ? $this->projectRepository->findAll($filters)
@@ -36,7 +37,12 @@ class ProjectController extends Controller
 
         return Inertia::render('Projects/Index', [
             'projects' => $projects,
-            'filters'  => $filters,
+            'filters'  => $uiFilters,
+            'title'    => 'Projects',
+            'basePath' => '/projects',
+            'boardPath' => '/projects/board',
+            'showBoardToggle' => true,
+            'showCreateButton' => true,
         ]);
     }
 
@@ -44,7 +50,8 @@ class ProjectController extends Controller
     {
         $user = auth()->user();
         $role = $this->authRole();
-        $filters = $request->only(['status', 'priority', 'search', 'owner_id', 'work_type']);
+        $uiFilters = $request->only(['status', 'priority', 'search', 'owner_id', 'work_type']);
+        $filters = array_merge($uiFilters, ['project_scope' => 'default']);
 
         $projects = in_array($role, ['manager', 'analyst_head', 'analyst'])
             ? $this->projectRepository->findAll($filters)
@@ -52,7 +59,33 @@ class ProjectController extends Controller
 
         return Inertia::render('Projects/Board', [
             'projects' => $projects,
-            'filters'  => $filters,
+            'filters'  => $uiFilters,
+        ]);
+    }
+
+    public function customWorklogIndex(Request $request)
+    {
+        $user = auth()->user();
+        $role = $this->authRole();
+        $uiFilters = $request->only(['status', 'priority', 'search', 'owner_id', 'work_type']);
+        $filters = array_merge($uiFilters, ['project_scope' => 'worklog_custom']);
+
+        $projects = in_array($role, ['manager', 'analyst_head', 'analyst'])
+            ? $this->projectRepository->findAll($filters)
+            : $this->projectRepository->findByWorker($user->id, $filters);
+
+        if ($request->wantsJson()) {
+            return response()->json($projects);
+        }
+
+        return Inertia::render('Projects/Index', [
+            'projects' => $projects,
+            'filters'  => $uiFilters,
+            'title'    => 'Custom Projects For Worklog',
+            'basePath' => '/projects/custom-worklog',
+            'boardPath' => '',
+            'showBoardToggle' => false,
+            'showCreateButton' => false,
         ]);
     }
 

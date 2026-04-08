@@ -13,8 +13,12 @@ const sidebarOpen = ref(false);
 function isActive(href) {
     if (!href) return false;
     if (href === '/') return url.value === '/';
-    if (href === '/projects') return url.value === '/projects' || (url.value.startsWith('/projects/') && !url.value.startsWith('/projects/board'));
+    if (href === '/projects') {
+        return url.value === '/projects'
+            || (url.value.startsWith('/projects/') && !url.value.startsWith('/projects/board') && !url.value.startsWith('/projects/custom-worklog'));
+    }
     if (href === '/projects/board') return url.value.startsWith('/projects/board');
+    if (href === '/projects/custom-worklog') return url.value.startsWith('/projects/custom-worklog');
     return url.value.startsWith(href);
 }
 
@@ -27,6 +31,7 @@ const navItems = computed(() => {
         { label: 'Dashboard', href: '/', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
         { label: 'Projects', href: '/projects', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
         { label: 'Board', href: '/projects/board', icon: 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2' },
+        { label: 'Custom Projects', href: '/projects/custom-worklog', icon: 'M7.5 3.75h9A2.25 2.25 0 0118.75 6v12A2.25 2.25 0 0116.5 20.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75zm2.25 4.5h4.5m-4.5 3h4.5m-4.5 3h2.25' },
         { label: 'Work Logs', href: '/work-logs', icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z' },
     ];
 

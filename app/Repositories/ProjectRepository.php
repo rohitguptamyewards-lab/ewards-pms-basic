@@ -6,6 +6,8 @@ use stdClass;
 
 class ProjectRepository
 {
+    private const WORKLOG_CUSTOM_TASK_TYPE = 'worklog_custom_project';
+
     public function findAll(array $filters = [], int $perPage = 20)
     {
         $query = DB::table('projects')
@@ -24,6 +26,8 @@ class ProjectRepository
                 DB::raw('(SELECT stage_name FROM project_stages WHERE project_stages.project_id = projects.id ORDER BY project_stages.created_at DESC LIMIT 1) as current_stage')
             )
             ->whereNull('projects.deleted_at');
+
+        $this->applyProjectScope($query, $filters);
 
         if (!empty($filters['status'])) {
             $query->where('projects.status', $filters['status']);
@@ -78,6 +82,8 @@ class ProjectRepository
                           ->where('project_workers.user_id', $userId);
                   });
             });
+
+        $this->applyProjectScope($query, $filters);
 
         if (!empty($filters['status'])) {
             $query->where('projects.status', $filters['status']);
@@ -138,5 +144,21 @@ class ProjectRepository
         }
         $data['updated_at'] = now();
         return DB::table('projects')->where('id', $id)->update($data) > 0;
+    }
+
+    private function applyProjectScope($query, array $filters): void
+    {
+        $scope = $filters['project_scope'] ?? 'default';
+
+        if ($scope === 'worklog_custom') {
+            $query->where('projects.custom_task_type', self::WORKLOG_CUSTOM_TASK_TYPE);
+            return;
+        }
+
+        // Default projects section excludes worklog-custom projects.
+        $query->where(function ($q) {
+            $q->whereNull('projects.custom_task_type')
+              ->orWhere('projects.custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE);
+        });
     }
 }
