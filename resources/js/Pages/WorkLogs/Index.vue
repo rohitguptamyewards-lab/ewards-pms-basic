@@ -17,6 +17,7 @@ const props = defineProps({
 const page = usePage();
 const role = computed(() => page.props.auth?.user?.role);
 const canViewAllWorklogs = computed(() => ['manager', 'analyst_head', 'senior_developer'].includes(role.value));
+const canUseHiddenEodCopy = computed(() => ['employee', 'developer'].includes(role.value));
 const CUSTOM_PROJECT_VALUE = '__new_project__';
 const projectsList = computed(() => {
     if (Array.isArray(props.projects)) return props.projects;
@@ -58,7 +59,9 @@ const editForm = ref({
 const timerRunning = ref(false);
 const timerStartedAt = ref(null);
 const timerElapsed = ref(0);
+const copyNotice = ref('');
 let timerInterval = null;
+let copyNoticeTimer = null;
 
 function padZero(n) {
     return String(n).padStart(2, '0');
@@ -108,6 +111,7 @@ async function stopTimer() {
 
 onUnmounted(() => {
     if (timerInterval) clearInterval(timerInterval);
+    if (copyNoticeTimer) clearTimeout(copyNoticeTimer);
 });
 
 // --- Duration calculation ---
@@ -323,6 +327,88 @@ function toggleMenu(id) {
 
 function closeMenu() {
     openMenuId.value = null;
+}
+
+function toLocalDateInput(value = new Date()) {
+    const date = value instanceof Date ? value : new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+function isTodayGroup(groupDate) {
+    return groupDate === toLocalDateInput();
+}
+
+function formatClipboardDate(date) {
+    if (!date) return '';
+
+    const [year, month, day] = String(date).split('-');
+    return `${day}/${month}/${year}`;
+}
+
+function formatClipboardTime(time) {
+    if (!time) return '';
+
+    const [hours = '00', minutes = '00'] = String(time).split(':');
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+}
+
+function normalizeClipboardDescription(note) {
+    const normalized = String(note || '').replace(/\s+/g, ' ').trim();
+    return normalized || 'No description';
+}
+
+function buildTodayClipboardText(group) {
+    const lines = (group.logs || []).map((log, index) => {
+        const description = normalizeClipboardDescription(log.note);
+        const startTime = formatClipboardTime(log.start_time);
+        const endTime = formatClipboardTime(log.end_time);
+
+        return `${index + 1}.${description}(${startTime}-${endTime})`;
+    });
+
+    return [`EOD(${formatClipboardDate(group.date)})`, ...lines].join('\n');
+}
+
+async function writeTextToClipboard(text) {
+    if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+}
+
+function showCopyNotice(message) {
+    copyNotice.value = message;
+
+    if (copyNoticeTimer) clearTimeout(copyNoticeTimer);
+    copyNoticeTimer = setTimeout(() => {
+        copyNotice.value = '';
+        copyNoticeTimer = null;
+    }, 2000);
+}
+
+async function copyTodayWorklogs(group) {
+    if (!canUseHiddenEodCopy.value || !isTodayGroup(group.date) || !group.logs?.length) return;
+
+    try {
+        await writeTextToClipboard(buildTodayClipboardText(group));
+        showCopyNotice('Today copied');
+    } catch (error) {
+        showCopyNotice('Copy failed');
+    }
 }
 
 // --- Resume a log entry (start timer with same project + note) ---
@@ -568,7 +654,12 @@ const selectedProjectName = computed(() => {
             <div v-for="group in groupedLogs" :key="group.date">
                 <!-- Date header -->
                 <div class="flex items-center justify-between px-1 py-2">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ formatDate(group.date) }}</span>
+                    <span
+                        class="text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                        @click="copyTodayWorklogs(group)"
+                    >
+                        {{ formatDate(group.date) }}
+                    </span>
                     <span class="font-mono text-xs font-bold text-[#4e1a77]">{{ dailyTotalHMS(group.total) }}</span>
                 </div>
 
@@ -818,6 +909,13 @@ const selectedProjectName = computed(() => {
                 v-html="link.label"
                 preserve-scroll
             />
+        </div>
+
+        <div
+            v-if="copyNotice"
+            class="pointer-events-none fixed bottom-4 right-4 rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white shadow-lg"
+        >
+            {{ copyNotice }}
         </div>
     </div>
 </template>
