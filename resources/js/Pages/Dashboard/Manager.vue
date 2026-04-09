@@ -4,6 +4,7 @@ import StatsCard from '@/Components/StatsCard.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import PriorityBadge from '@/Components/PriorityBadge.vue';
 import StageBadge from '@/Components/StageBadge.vue';
+import TeamActivityReport from '@/Components/TeamActivityReport.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
@@ -16,6 +17,9 @@ const props = defineProps({
     activeBlockers: { type: [Array, Object], default: () => [] },
     overduePlanners: { type: [Array, Object], default: () => [] },
     recentProjects: { type: [Array, Object], default: () => [] },
+    canViewTeamActivityReport: { type: Boolean, default: false },
+    projectsForReport: { type: [Array, Object], default: () => [] },
+    teamMembersForReport: { type: [Array, Object], default: () => [] },
 });
 
 const page = usePage();
@@ -48,6 +52,13 @@ function getGreeting() {
                 </Link>
             </div>
         </div>
+
+        <!-- Team Activity Report -->
+        <TeamActivityReport
+            v-if="canViewTeamActivityReport"
+            :projects="projectsForReport"
+            :team-members="teamMembersForReport"
+        />
 
         <!-- Stats -->
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">

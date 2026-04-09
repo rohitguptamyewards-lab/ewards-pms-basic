@@ -60,6 +60,7 @@ Route::prefix('v1')->name('api.')->middleware(['auth'])->group(function () {
     // Dashboard
     Route::get('dashboard/manager', [DashboardController::class, 'manager']);
     Route::get('dashboard/employee', [DashboardController::class, 'employee']);
+    Route::get('dashboard/activity-report', [DashboardController::class, 'activityReport']);
 
     // Reports
     Route::get('reports/projects', [ReportController::class, 'projects']);

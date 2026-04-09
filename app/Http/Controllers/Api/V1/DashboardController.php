@@ -9,28 +9,32 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    private const MANAGER_DASHBOARD_ROLES = ['manager', 'analyst_head', 'analyst'];
+    private const TEAM_ACTIVITY_REPORT_ROLES = ['manager', 'analyst_head', 'senior_developer'];
+    private const WORKLOG_CUSTOM_TASK_TYPE = 'worklog_custom_project';
+
     public function index(Request $request)
     {
         $user = auth()->user();
-        $role = $user->role->value ?? $user->role;
+        $role = $this->authRole();
 
-        if (in_array($role, ['manager', 'analyst_head', 'analyst'])) {
-            return $this->renderManagerDashboard();
+        if (in_array($role, self::MANAGER_DASHBOARD_ROLES, true)) {
+            return $this->renderManagerDashboard($role);
         }
 
-        return $this->renderEmployeeDashboard($user->id);
+        return $this->renderEmployeeDashboard($user->id, $role);
     }
 
-    private function renderManagerDashboard()
+    private function renderManagerDashboard(string $role)
     {
         $totalProjects = DB::table('projects')->whereNull('deleted_at')
-            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', 'worklog_custom_project'))
+            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE))
             ->count();
         $activeProjects = DB::table('projects')->whereNull('deleted_at')->where('status', 'active')
-            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', 'worklog_custom_project'))
+            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE))
             ->count();
         $onHoldProjects = DB::table('projects')->whereNull('deleted_at')->where('status', 'on_hold')
-            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', 'worklog_custom_project'))
+            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE))
             ->count();
 
         $activeBlockers = DB::table('project_blockers')
@@ -63,22 +67,27 @@ class DashboardController extends Controller
                 DB::raw('(SELECT stage_name FROM project_stages WHERE project_stages.project_id = projects.id ORDER BY project_stages.created_at DESC LIMIT 1) as current_stage')
             )
             ->whereNull('projects.deleted_at')
-            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', 'worklog_custom_project'))
+            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE))
             ->orderByDesc('projects.updated_at')
             ->limit(10)
             ->get();
 
+        [$projectsForReport, $teamMembersForReport] = $this->getActivityReportFilterOptions($role);
+
         return Inertia::render('Dashboard/Manager', [
-            'totalProjects'   => $totalProjects,
-            'activeProjects'  => $activeProjects,
-            'onHoldProjects'  => $onHoldProjects,
-            'activeBlockers'  => $activeBlockers,
-            'overduePlanners' => $overduePlanners,
-            'recentProjects'  => $recentProjects,
+            'totalProjects'            => $totalProjects,
+            'activeProjects'           => $activeProjects,
+            'onHoldProjects'           => $onHoldProjects,
+            'activeBlockers'           => $activeBlockers,
+            'overduePlanners'          => $overduePlanners,
+            'recentProjects'           => $recentProjects,
+            'canViewTeamActivityReport'=> $this->canViewTeamActivityReport($role),
+            'projectsForReport'        => $projectsForReport,
+            'teamMembersForReport'     => $teamMembersForReport,
         ]);
     }
 
-    private function renderEmployeeDashboard(int $userId)
+    private function renderEmployeeDashboard(int $userId, string $role)
     {
         $myProjects = DB::table('projects')
             ->leftJoin('project_workers', function ($join) use ($userId) {
@@ -101,7 +110,7 @@ class DashboardController extends Controller
                   ->orWhere('projects.developer_id', $userId);
             })
             ->whereNull('projects.deleted_at')
-            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', 'worklog_custom_project'))
+            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE))
             ->distinct()
             ->orderByDesc('projects.updated_at')
             ->get();
@@ -123,10 +132,75 @@ class DashboardController extends Controller
             ->whereNull('projects.deleted_at')
             ->get();
 
+        [$projectsForReport, $teamMembersForReport] = $this->getActivityReportFilterOptions($role);
+
         return Inertia::render('Dashboard/Employee', [
-            'myProjects'  => $myProjects,
-            'myPlanners'  => $myPlanners,
-            'myBlockers'  => $myBlockers,
+            'myProjects'               => $myProjects,
+            'myPlanners'               => $myPlanners,
+            'myBlockers'               => $myBlockers,
+            'canViewTeamActivityReport'=> $this->canViewTeamActivityReport($role),
+            'projectsForReport'        => $projectsForReport,
+            'teamMembersForReport'     => $teamMembersForReport,
+        ]);
+    }
+
+    public function activityReport(Request $request): JsonResponse
+    {
+        abort_unless($this->canViewTeamActivityReport($this->authRole()), 403);
+
+        $validated = $request->validate([
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
+            'user_id'    => ['nullable', 'integer', 'exists:team_members,id'],
+            'date_from'  => ['nullable', 'date'],
+            'date_to'    => ['nullable', 'date'],
+        ]);
+
+        [$dateFrom, $dateTo] = $this->normalizeDateRange(
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null
+        );
+
+        $query = DB::table('work_logs')
+            ->join('team_members', 'work_logs.user_id', '=', 'team_members.id')
+            ->join('projects', 'work_logs.project_id', '=', 'projects.id')
+            ->select(
+                'work_logs.id',
+                'work_logs.user_id',
+                'work_logs.project_id',
+                'work_logs.log_date',
+                'work_logs.note',
+                'work_logs.hours_spent',
+                'work_logs.status',
+                'team_members.name as user_name',
+                'projects.name as project_name'
+            )
+            ->whereNull('work_logs.deleted_at')
+            ->whereNull('projects.deleted_at')
+            ->where(fn ($q) => $q->whereNull('projects.custom_task_type')->orWhere('projects.custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE))
+            ->whereBetween('work_logs.log_date', [$dateFrom, $dateTo]);
+
+        if (!empty($validated['project_id'])) {
+            $query->where('work_logs.project_id', $validated['project_id']);
+        }
+        if (!empty($validated['user_id'])) {
+            $query->where('work_logs.user_id', $validated['user_id']);
+        }
+
+        $logs = $query->orderBy('work_logs.log_date', 'desc')
+            ->orderBy('team_members.name')
+            ->get();
+
+        $totalHours = round((float) $logs->sum('hours_spent'), 2);
+
+        return response()->json([
+            'logs'        => $logs,
+            'total_hours' => $totalHours,
+            'meta'        => [
+                'date_from'   => $dateFrom,
+                'date_to'     => $dateTo,
+                'entry_count' => $logs->count(),
+                'total_hours' => $totalHours,
+            ],
         ]);
     }
 
@@ -140,5 +214,52 @@ class DashboardController extends Controller
     public function employee(Request $request): JsonResponse
     {
         return response()->json(['message' => 'Use web route']);
+    }
+
+    private function authRole(): string
+    {
+        $role = auth()->user()->role;
+
+        return $role instanceof \App\Enums\Role ? $role->value : (string) $role;
+    }
+
+    private function canViewTeamActivityReport(string $role): bool
+    {
+        return in_array($role, self::TEAM_ACTIVITY_REPORT_ROLES, true);
+    }
+
+    private function getActivityReportFilterOptions(string $role): array
+    {
+        if (!$this->canViewTeamActivityReport($role)) {
+            return [collect(), collect()];
+        }
+
+        $projects = DB::table('projects')
+            ->select('id', 'name')
+            ->whereNull('deleted_at')
+            ->where(fn ($q) => $q->whereNull('custom_task_type')->orWhere('custom_task_type', '!=', self::WORKLOG_CUSTOM_TASK_TYPE))
+            ->orderBy('name')
+            ->get();
+
+        $teamMembers = DB::table('team_members')
+            ->select('id', 'name')
+            ->whereNull('deleted_at')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return [$projects, $teamMembers];
+    }
+
+    private function normalizeDateRange(?string $dateFrom, ?string $dateTo): array
+    {
+        $from = $dateFrom ?: now()->toDateString();
+        $to = $dateTo ?: $from;
+
+        if ($from > $to) {
+            return [$to, $from];
+        }
+
+        return [$from, $to];
     }
 }

@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import StageBadge from '@/Components/StageBadge.vue';
+import TeamActivityReport from '@/Components/TeamActivityReport.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
@@ -11,6 +12,9 @@ const props = defineProps({
     myProjects: { type: [Array, Object], default: () => [] },
     myPlanners: { type: [Array, Object], default: () => [] },
     myBlockers: { type: [Array, Object], default: () => [] },
+    canViewTeamActivityReport: { type: Boolean, default: false },
+    projectsForReport: { type: [Array, Object], default: () => [] },
+    teamMembersForReport: { type: [Array, Object], default: () => [] },
 });
 
 const page = usePage();
@@ -84,6 +88,12 @@ const pendingTasks = computed(() => (props.myPlanners || []).length);
                 Log Work
             </Link>
         </div>
+
+        <TeamActivityReport
+            v-if="canViewTeamActivityReport"
+            :projects="projectsForReport"
+            :team-members="teamMembersForReport"
+        />
 
         <!-- My Projects -->
         <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
