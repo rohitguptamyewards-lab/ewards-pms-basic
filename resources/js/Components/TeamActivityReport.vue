@@ -1,4 +1,5 @@
 <script setup>
+import StageBadge from '@/Components/StageBadge.vue';
 import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -241,6 +242,22 @@ function statusLabel(status) {
     return status ? String(status).replace(/_/g, ' ') : '—';
 }
 
+function projectStageValue(log) {
+    return log.project_stage_snapshot || '';
+}
+
+function projectStageLabel(log) {
+    const stage = projectStageValue(log);
+
+    if (stage) {
+        return stage
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (character) => character.toUpperCase());
+    }
+
+    return statusLabel(log.status);
+}
+
 async function downloadPdf() {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
@@ -259,7 +276,7 @@ async function downloadPdf() {
             log.project_name,
             log.note || 'No description added',
             `${Number(log.hours_spent || 0).toFixed(2)}h`,
-            statusLabel(log.status),
+            projectStageLabel(log),
         ]))
         : [[dateRangeLabel.value, selectedUserLabel.value, selectedProjectLabel.value, 'No project worklogs found for the selected filters.', '0.00h', '—']];
 
@@ -275,7 +292,7 @@ async function downloadPdf() {
 
     autoTable(doc, {
         startY: 32,
-        head: [['Date', 'Member', 'Project', 'Work Description', 'Hours', 'Status']],
+        head: [['Date', 'Member', 'Project', 'Work Description', 'Hours', 'Project Stage']],
         body: rows,
         margin: { top: 14, right: 14, bottom: 18, left: 14 },
         styles: {
@@ -296,7 +313,7 @@ async function downloadPdf() {
             2: { cellWidth: 42 },
             3: { cellWidth: 120 },
             4: { cellWidth: 18, halign: 'right' },
-            5: { cellWidth: 24 },
+            5: { cellWidth: 34 },
         },
     });
 
@@ -481,7 +498,7 @@ function printReport() {
                             <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Project</th>
                             <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400">Work Description</th>
                             <th class="py-2 pr-4 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Hours</th>
-                            <th class="py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Status</th>
+                            <th class="py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Project Stage</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -500,7 +517,8 @@ function printReport() {
                                 {{ Number(log.hours_spent || 0).toFixed(2) }}h
                             </td>
                             <td class="py-2.5">
-                                <span :class="['inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize', statusClass(log.status)]">
+                                <StageBadge v-if="projectStageValue(log)" :stage="projectStageValue(log)" />
+                                <span v-else :class="['inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize', statusClass(log.status)]">
                                     {{ statusLabel(log.status) }}
                                 </span>
                             </td>

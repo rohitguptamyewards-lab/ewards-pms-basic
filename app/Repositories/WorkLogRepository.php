@@ -6,6 +6,8 @@ use stdClass;
 
 class WorkLogRepository
 {
+    private const WORKLOG_CUSTOM_TASK_TYPE = 'worklog_custom_project';
+
     public function findAll(array $filters = [], int $perPage = 25)
     {
         $query = DB::table('work_logs')
@@ -72,6 +74,10 @@ class WorkLogRepository
             }
         }
 
+        if (!empty($data['project_id'])) {
+            $data['project_stage_snapshot'] = $this->resolveProjectStageSnapshot((int) $data['project_id']);
+        }
+
         $data['created_at'] = now();
         $data['updated_at'] = now();
         return DB::table('work_logs')->insertGetId($data);
@@ -81,7 +87,7 @@ class WorkLogRepository
     {
         // Auto-calculate hours_spent using effective start/end (incoming + existing)
         $existing = DB::table('work_logs')
-            ->select('start_time', 'end_time')
+            ->select('project_id', 'project_stage_snapshot', 'start_time', 'end_time')
             ->where('id', $id)
             ->first();
 
@@ -95,6 +101,12 @@ class WorkLogRepository
                 if ($end > $start) {
                     $data['hours_spent'] = round(($end - $start) / 3600, 2);
                 }
+            }
+
+            if (array_key_exists('project_id', $data)) {
+                $data['project_stage_snapshot'] = $this->resolveProjectStageSnapshot((int) $data['project_id']);
+            } elseif (empty($existing->project_stage_snapshot) && !empty($existing->project_id)) {
+                $data['project_stage_snapshot'] = $this->resolveProjectStageSnapshot((int) $existing->project_id);
             }
         }
 
@@ -126,5 +138,26 @@ class WorkLogRepository
             ->whereNull('deleted_at')
             ->orderByDesc('end_time')
             ->value('end_time');
+    }
+
+    private function resolveProjectStageSnapshot(int $projectId): ?string
+    {
+        $project = DB::table('projects')
+            ->select('status', 'custom_task_type')
+            ->where('id', $projectId)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$project || $project->custom_task_type === self::WORKLOG_CUSTOM_TASK_TYPE) {
+            return null;
+        }
+
+        $latestStage = DB::table('project_stages')
+            ->where('project_id', $projectId)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->value('stage_name');
+
+        return $latestStage ?: $project->status;
     }
 }

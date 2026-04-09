@@ -136,7 +136,7 @@ class WorkLogController extends Controller
             'log_date'   => ['sometimes', 'date'],
             'start_time' => ['sometimes', 'date_format:H:i'],
             'end_time'   => ['sometimes', 'date_format:H:i'],
-            'status'     => ['sometimes', 'string'],
+            'status'     => ['sometimes', 'nullable', 'in:done,in_progress,blocked'],
             'note'       => ['nullable', 'string'],
             'blocker'    => ['nullable', 'string'],
         ]);

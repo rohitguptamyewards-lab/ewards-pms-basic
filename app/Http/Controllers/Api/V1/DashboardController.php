@@ -171,6 +171,7 @@ class DashboardController extends Controller
                 'work_logs.note',
                 'work_logs.hours_spent',
                 'work_logs.status',
+                'work_logs.project_stage_snapshot',
                 'team_members.name as user_name',
                 'projects.name as project_name'
             )

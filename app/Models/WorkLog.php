@@ -14,7 +14,7 @@ class WorkLog extends Model
 
     protected $fillable = [
         'user_id', 'project_id', 'log_date', 'start_time', 'end_time',
-        'hours_spent', 'status', 'note', 'blocker',
+        'hours_spent', 'status', 'project_stage_snapshot', 'note', 'blocker',
     ];
 
     protected function casts(): array
