@@ -31,6 +31,17 @@ class ProjectController extends Controller
             ? $this->projectRepository->findAll($filters)
             : $this->projectRepository->findByWorker($user->id, $filters);
 
+        // All project names for dependency picker
+        $allProjects = DB::table('projects')
+            ->select('id', 'name')
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('custom_task_type')
+                  ->orWhere('custom_task_type', '!=', 'worklog_custom_project');
+            })
+            ->orderBy('name')
+            ->get();
+
         if ($request->wantsJson()) {
             return response()->json($projects);
         }
@@ -43,6 +54,7 @@ class ProjectController extends Controller
             'boardPath' => '/projects/board',
             'showBoardToggle' => true,
             'showCreateButton' => true,
+            'allProjects' => $allProjects,
         ]);
     }
 
@@ -86,10 +98,11 @@ class ProjectController extends Controller
             'boardPath' => '',
             'showBoardToggle' => false,
             'showCreateButton' => false,
+            'allProjects' => [],
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         abort_unless(in_array($this->authRole(), ['manager', 'analyst_head', 'analyst']), 403);
 
@@ -100,8 +113,26 @@ class ProjectController extends Controller
             ->orderBy('name')
             ->get();
 
+        $allProjects = DB::table('projects')
+            ->select('id', 'name')
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('custom_task_type')
+                  ->orWhere('custom_task_type', '!=', 'worklog_custom_project');
+            })
+            ->orderBy('name')
+            ->get();
+
+        $parentId = $request->query('parent_id');
+        $parentProject = null;
+        if ($parentId) {
+            $parentProject = DB::table('projects')->select('id', 'name')->where('id', $parentId)->first();
+        }
+
         return Inertia::render('Projects/Create', [
             'teamMembers' => $teamMembers,
+            'allProjects' => $allProjects,
+            'parentProject' => $parentProject,
         ]);
     }
 
@@ -111,6 +142,17 @@ class ProjectController extends Controller
 
         $data = $request->validated();
         $data['created_by'] = auth()->id();
+
+        // Validate max depth of 3 (0-indexed, so 4 levels total)
+        if (!empty($data['parent_id'])) {
+            $parentDepth = $this->projectRepository->getDepth($data['parent_id']);
+            if ($parentDepth >= 3) {
+                if ($request->wantsJson()) {
+                    return response()->json(['message' => 'Maximum nesting depth (4 levels) reached.'], 422);
+                }
+                return back()->withErrors(['parent_id' => 'Maximum nesting depth (4 levels) reached.']);
+            }
+        }
 
         // Set analyst_id to current user if they're an analyst and didn't specify
         if (empty($data['analyst_id']) && $this->authRole() === 'analyst') {
@@ -172,6 +214,15 @@ class ProjectController extends Controller
     }
 
     /**
+     * Get children (subtasks) of a project.
+     */
+    public function children(int $id): JsonResponse
+    {
+        $children = $this->projectRepository->findChildren($id);
+        return response()->json($children);
+    }
+
+    /**
      * Replicate: return create page pre-filled with existing project data
      */
     public function replicate(Request $request, int $id)
@@ -190,9 +241,20 @@ class ProjectController extends Controller
             ->orderBy('name')
             ->get();
 
+        $allProjects = DB::table('projects')
+            ->select('id', 'name')
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('custom_task_type')
+                  ->orWhere('custom_task_type', '!=', 'worklog_custom_project');
+            })
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Projects/Create', [
             'teamMembers' => $teamMembers,
             'replicateFrom' => $project,
+            'allProjects' => $allProjects,
         ]);
     }
 
@@ -202,7 +264,7 @@ class ProjectController extends Controller
     public function uploadAttachment(Request $request, int $id)
     {
         $request->validate([
-            'file' => ['required', 'file', 'max:20480'], // 20MB max
+            'file' => ['required', 'file', 'max:20480'],
         ]);
 
         $file = $request->file('file');
@@ -238,7 +300,6 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Not found'], 404);
         }
 
-        // Delete file from storage
         \Illuminate\Support\Facades\Storage::disk('public')->delete($attachment->stored_path);
         DB::table('project_attachments')->where('id', $id)->delete();
 
@@ -249,10 +310,7 @@ class ProjectController extends Controller
     {
         $role = $this->authRole();
 
-        // Employees can only update via stage change (handled by StageController)
-        // But they CAN update assignment fields if manager allows
         if ($role === 'employee') {
-            // Employee can only post comments/change stage, not edit project fields
             abort(403, 'Employees cannot edit project details. Use stage change or comments.');
         }
 
@@ -261,7 +319,6 @@ class ProjectController extends Controller
 
         $this->projectRepository->update($id, $data);
 
-        // Check if new people were assigned and send emails
         $this->sendAssignmentEmailsOnUpdate($id, $data, $oldProject);
 
         if ($request->wantsJson()) {

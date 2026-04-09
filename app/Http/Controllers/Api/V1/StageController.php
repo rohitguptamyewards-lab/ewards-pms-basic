@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Mail\StageChanged;
+use App\Services\AutomationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,13 @@ class StageController extends Controller
         if ($project) {
             $this->notifyOnStageChange($project, $data['stage_name'], $userName);
             $this->sendInAppStageNotifications($project, $data['stage_name'], $userName);
+
+            // Trigger automation engine for stage changes
+            try {
+                app(AutomationService::class)->processStageChange($projectId, $oldStage, $data['stage_name']);
+            } catch (\Throwable $e) {
+                \Log::warning("Automation stage trigger failed: " . $e->getMessage());
+            }
         }
 
         return response()->json(['message' => 'Stage updated']);

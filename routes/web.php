@@ -34,6 +34,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/reports/projects', [\App\Http\Controllers\Api\V1\ReportController::class, 'projects'])->name('reports.projects');
     Route::get('/reports/workers', [\App\Http\Controllers\Api\V1\ReportController::class, 'workers'])->name('reports.workers');
 
+    // Automations
+    Route::get('/automations', [\App\Http\Controllers\Api\V1\AutomationController::class, 'index'])->name('automations.index');
+
+    // Release Notes
+    Route::get('/projects/{projectId}/release-notes', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'index'])->name('release-notes.index');
+
     // Team Members
     Route::get('/team-members', [\App\Http\Controllers\Api\V1\TeamMemberController::class, 'index'])->name('team-members.index');
     Route::get('/team-members/create', [\App\Http\Controllers\Api\V1\TeamMemberController::class, 'create'])->name('team-members.create');

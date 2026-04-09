@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import axios from 'axios';
 
 defineOptions({ layout: AppLayout });
@@ -9,6 +9,8 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     teamMembers: { type: Array, default: () => [] },
     replicateFrom: { type: Object, default: null },
+    allProjects: { type: Array, default: () => [] },
+    parentProject: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -34,6 +36,10 @@ const form = useForm({
     developer_id: r?.developer_id ? String(r.developer_id) : '',
     document_link: r?.document_link || '',
     ai_chat_link: r?.ai_chat_link || '',
+    parent_id: props.parentProject?.id ? String(props.parentProject.id) : (r?.parent_id ? String(r.parent_id) : ''),
+    start_date: r?.start_date || '',
+    due_date: r?.due_date || '',
+    linked_project_ids: r?.linked_project_ids ? (Array.isArray(r.linked_project_ids) ? r.linked_project_ids : JSON.parse(r.linked_project_ids || '[]')) : [],
 });
 
 // Auto-set analyst_id if current user is analyst and not replicating
@@ -75,6 +81,27 @@ const fileIcon = (name) => {
 const analysts = computed(() => props.teamMembers.filter(m => ['analyst', 'analyst_head', 'manager'].includes(m.role)));
 const developers = computed(() => props.teamMembers.filter(m => ['employee', 'developer', 'senior_developer'].includes(m.role)));
 
+// Dependencies search
+const depSearch = ref('');
+const filteredDepProjects = computed(() => {
+    if (!depSearch.value) return props.allProjects.slice(0, 20);
+    const s = depSearch.value.toLowerCase();
+    return props.allProjects.filter(p => p.name.toLowerCase().includes(s)).slice(0, 20);
+});
+
+function toggleDependency(projectId) {
+    const idx = form.linked_project_ids.indexOf(projectId);
+    if (idx >= 0) {
+        form.linked_project_ids.splice(idx, 1);
+    } else {
+        form.linked_project_ids.push(projectId);
+    }
+}
+
+function getProjectName(id) {
+    return props.allProjects.find(p => p.id === id)?.name || `#${id}`;
+}
+
 async function submit() {
     const data = {
         ...form.data(),
@@ -83,11 +110,11 @@ async function submit() {
         analyst_id: form.analyst_id ? parseInt(form.analyst_id) : null,
         analyst_testing_id: form.analyst_testing_id ? parseInt(form.analyst_testing_id) : null,
         developer_id: form.developer_id ? parseInt(form.developer_id) : null,
+        parent_id: form.parent_id ? parseInt(form.parent_id) : null,
     };
 
     form.transform(() => data).post('/projects', {
         onSuccess: async (page) => {
-            // Upload pending files if any
             if (pendingFiles.value.length > 0) {
                 const projectId = page.props?.project?.id;
                 if (projectId) {
@@ -110,13 +137,13 @@ async function submit() {
 </script>
 
 <template>
-    <Head :title="replicateFrom ? 'Replicate Project' : 'Create Project'" />
+    <Head :title="replicateFrom ? 'Replicate Project' : (parentProject ? 'Add Subtask' : 'Create Project')" />
 
     <div class="mx-auto max-w-3xl space-y-4">
         <div class="flex items-center gap-2 text-sm text-gray-500">
             <Link href="/projects" class="hover:text-[#4e1a77]">Projects</Link>
             <span>/</span>
-            <span class="text-gray-900 font-medium">{{ replicateFrom ? 'Replicate' : 'Create' }}</span>
+            <span class="text-gray-900 font-medium">{{ replicateFrom ? 'Replicate' : (parentProject ? 'Add Subtask' : 'Create') }}</span>
         </div>
 
         <!-- Replicate notice -->
@@ -124,15 +151,20 @@ async function submit() {
             Replicating from: <strong>{{ replicateFrom.name }}</strong> &mdash; Edit the fields below and create.
         </div>
 
+        <!-- Parent project notice -->
+        <div v-if="parentProject" class="rounded-lg border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm text-purple-700">
+            Creating subtask under: <strong>{{ parentProject.name }}</strong>
+        </div>
+
         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-100 px-6 py-4">
-                <h1 class="text-lg font-bold text-gray-900">{{ replicateFrom ? 'Replicate Project' : 'New Project' }}</h1>
+                <h1 class="text-lg font-bold text-gray-900">{{ replicateFrom ? 'Replicate Project' : (parentProject ? 'New Subtask' : 'New Project') }}</h1>
             </div>
 
             <form @submit.prevent="submit" class="space-y-5 px-6 py-5">
                 <!-- Project Name -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Project Name *</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ parentProject ? 'Subtask Name' : 'Project Name' }} *</label>
                     <input v-model="form.name" type="text" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" :class="{ 'border-red-400 bg-red-50': form.errors.name }" />
                     <p v-if="form.errors.name" class="mt-1 text-xs text-red-500">{{ form.errors.name }}</p>
                 </div>
@@ -147,6 +179,20 @@ async function submit() {
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Objective</label>
                     <textarea v-model="form.objective" rows="2" class="mt-1 block w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
+                </div>
+
+                <!-- Row: Start Date + Due Date -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                        <input v-model="form.start_date" type="date" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
+                        <p v-if="form.errors.start_date" class="mt-1 text-xs text-red-500">{{ form.errors.start_date }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Due Date</label>
+                        <input v-model="form.due_date" type="date" :min="form.start_date || undefined" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
+                        <p v-if="form.errors.due_date" class="mt-1 text-xs text-red-500">{{ form.errors.due_date }}</p>
+                    </div>
                 </div>
 
                 <!-- Row: Work Type + Task Type + Priority -->
@@ -175,7 +221,6 @@ async function submit() {
                             <option value="integration">Integration</option>
                             <option value="other">Other</option>
                         </select>
-                        <!-- Custom task type input when "other" is selected -->
                         <input
                             v-if="form.task_type === 'other'"
                             v-model="form.custom_task_type"
@@ -228,6 +273,47 @@ async function submit() {
                     </div>
                 </div>
 
+                <!-- Dependencies -->
+                <div v-if="allProjects.length">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Dependencies (depends on)</label>
+
+                    <!-- Selected dependencies -->
+                    <div v-if="form.linked_project_ids.length" class="flex flex-wrap gap-2 mb-2">
+                        <span
+                            v-for="depId in form.linked_project_ids"
+                            :key="depId"
+                            class="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700"
+                        >
+                            {{ getProjectName(depId) }}
+                            <button type="button" @click="toggleDependency(depId)" class="ml-0.5 text-purple-400 hover:text-purple-700">
+                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </span>
+                    </div>
+
+                    <!-- Search & pick -->
+                    <input
+                        v-model="depSearch"
+                        type="text"
+                        placeholder="Search projects to add as dependency..."
+                        class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                    />
+                    <div v-if="depSearch" class="mt-1 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <button
+                            v-for="dp in filteredDepProjects"
+                            :key="dp.id"
+                            type="button"
+                            @click="toggleDependency(dp.id); depSearch = ''"
+                            class="block w-full text-left px-3 py-2 text-sm hover:bg-purple-50 transition-colors"
+                            :class="form.linked_project_ids.includes(dp.id) ? 'bg-purple-50 text-purple-700' : 'text-gray-700'"
+                        >
+                            {{ dp.name }}
+                            <span v-if="form.linked_project_ids.includes(dp.id)" class="text-xs text-purple-400 ml-1">(added)</span>
+                        </button>
+                        <p v-if="!filteredDepProjects.length" class="px-3 py-2 text-xs text-gray-400">No matching projects</p>
+                    </div>
+                </div>
+
                 <!-- Row: Tags + Ticket Link -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -273,7 +359,6 @@ async function submit() {
                         </label>
                     </div>
 
-                    <!-- Pending files list -->
                     <div v-if="pendingFiles.length" class="mt-3 space-y-2">
                         <div
                             v-for="(file, idx) in pendingFiles"
@@ -299,7 +384,7 @@ async function submit() {
                 <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
                     <Link href="/projects" class="rounded-lg px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</Link>
                     <button type="submit" :disabled="form.processing || uploading" class="rounded-lg bg-[#4e1a77] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d1560] disabled:opacity-50">
-                        {{ form.processing ? 'Creating...' : uploading ? 'Uploading files...' : (replicateFrom ? 'Create Replica' : 'Create Project') }}
+                        {{ form.processing ? 'Creating...' : uploading ? 'Uploading files...' : (replicateFrom ? 'Create Replica' : (parentProject ? 'Create Subtask' : 'Create Project')) }}
                     </button>
                 </div>
             </form>

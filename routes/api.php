@@ -11,11 +11,15 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\WorkLogController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\AutomationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.')->middleware(['auth'])->group(function () {
     // Projects
     Route::apiResource('projects', ProjectController::class)->only(['index', 'store', 'show', 'update']);
+
+    // Project Children (subtasks)
+    Route::get('projects/{id}/children', [ProjectController::class, 'children']);
 
     // Project Attachments
     Route::post('projects/{id}/attachments', [\App\Http\Controllers\Api\V1\ProjectController::class, 'uploadAttachment']);
@@ -78,6 +82,25 @@ Route::prefix('v1')->name('api.')->middleware(['auth'])->group(function () {
     // Team Members
     Route::put('team-members/{id}', [\App\Http\Controllers\Api\V1\TeamMemberController::class, 'update']);
     Route::post('team-members/{id}/toggle-active', [\App\Http\Controllers\Api\V1\TeamMemberController::class, 'toggleActive']);
+
+    // Automations
+    Route::get('automations', [AutomationController::class, 'index']);
+    Route::post('automations', [AutomationController::class, 'store']);
+    Route::put('automations/{id}', [AutomationController::class, 'update']);
+    Route::delete('automations/{id}', [AutomationController::class, 'destroy']);
+    Route::post('automations/{id}/toggle', [AutomationController::class, 'toggle']);
+    Route::post('automations/{id}/run', [AutomationController::class, 'runNow']);
+    Route::get('automations/{id}/logs', [AutomationController::class, 'logs']);
+
+    // Release Notes
+    Route::get('projects/{projectId}/release-notes', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'index']);
+    Route::post('projects/{projectId}/release-notes', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'store']);
+    Route::put('release-notes/{id}', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'update']);
+    Route::delete('release-notes/{id}', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'destroy']);
+    Route::post('release-notes/{id}/files', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'uploadFiles']);
+    Route::delete('release-note-files/{fileId}', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'deleteFile']);
+    Route::post('release-notes/{id}/links', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'addLink']);
+    Route::delete('release-note-links/{linkId}', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'deleteLink']);
 
     // Notifications
     Route::get('notifications', [NotificationController::class, 'index']);

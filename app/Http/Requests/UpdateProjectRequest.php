@@ -32,6 +32,9 @@ class UpdateProjectRequest extends FormRequest
             'document_link'      => ['nullable', 'string', 'max:2000'],
             'ai_chat_link'       => ['nullable', 'string', 'max:2000'],
             'linked_project_ids' => ['nullable', 'array'],
+            'parent_id'          => ['nullable', 'integer', 'exists:projects,id'],
+            'start_date'         => ['nullable', 'date'],
+            'due_date'           => ['nullable', 'date', 'after_or_equal:start_date'],
         ];
     }
 }

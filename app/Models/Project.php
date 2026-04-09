@@ -16,6 +16,7 @@ class Project extends Model
     protected $fillable = [
         'name', 'description', 'objective', 'tags', 'status', 'priority',
         'owner_id', 'created_by', 'linked_project_ids',
+        'parent_id', 'start_date', 'due_date',
     ];
 
     protected function casts(): array
@@ -25,12 +26,24 @@ class Project extends Model
             'priority'           => ProjectPriority::class,
             'tags'               => 'array',
             'linked_project_ids' => 'array',
+            'start_date'         => 'date',
+            'due_date'           => 'date',
         ];
     }
 
     public function owner(): BelongsTo
     {
         return $this->belongsTo(TeamMember::class, 'owner_id');
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(self::class, 'parent_id');
     }
 
     public function createdBy(): BelongsTo
