@@ -9,13 +9,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('projects', function (Blueprint $table) {
-            $table->unsignedBigInteger('parent_id')->nullable()->after('id');
-            $table->date('start_date')->nullable()->after('linked_project_ids');
-            $table->date('due_date')->nullable()->after('start_date');
-
-            $table->foreign('parent_id')->references('id')->on('projects')->onDelete('cascade');
-            $table->index('parent_id');
+            if (!Schema::hasColumn('projects', 'parent_id')) {
+                $table->unsignedBigInteger('parent_id')->nullable();
+            }
+            if (!Schema::hasColumn('projects', 'start_date')) {
+                $table->date('start_date')->nullable();
+            }
+            if (!Schema::hasColumn('projects', 'due_date')) {
+                $table->date('due_date')->nullable();
+            }
         });
+
+        // Add foreign key and index separately to avoid duplicate errors
+        try {
+            Schema::table('projects', function (Blueprint $table) {
+                $table->foreign('parent_id')->references('id')->on('projects')->onDelete('cascade');
+                $table->index('parent_id');
+            });
+        } catch (\Throwable $e) {
+            // Index/FK may already exist
+        }
     }
 
     public function down(): void

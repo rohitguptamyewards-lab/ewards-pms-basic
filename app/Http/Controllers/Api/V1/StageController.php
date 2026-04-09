@@ -43,7 +43,7 @@ class StageController extends Controller
         ]);
 
         // Auto-log stage change to project_updates (comments)
-        $userName = auth()->user()->name;
+        $userName = auth()->user()?->name ?? 'System';
         $oldLabel = $oldStage ? str_replace('_', ' ', ucwords($oldStage, '_')) : 'None';
         $newLabel = str_replace('_', ' ', ucwords($data['stage_name'], '_'));
 

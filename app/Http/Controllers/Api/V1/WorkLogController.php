@@ -177,8 +177,8 @@ class WorkLogController extends Controller
 
     private function authRole(): string
     {
-        $role = auth()->user()->role;
-        return $role instanceof \App\Enums\Role ? $role->value : (string) $role;
+        $role = auth()->user()?->role;
+        return $role instanceof \App\Enums\Role ? $role->value : (string) ($role ?? '');
     }
 
     private function canViewAllWorklogs(?string $role = null): bool

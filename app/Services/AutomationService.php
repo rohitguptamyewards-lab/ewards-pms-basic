@@ -241,7 +241,7 @@ class AutomationService
                     $sub->select(DB::raw(1))
                         ->from('project_blockers')
                         ->whereColumn('project_blockers.project_id', 'projects.id')
-                        ->whereNull('project_blockers.resolved_at');
+                        ->where('project_blockers.status', 'active');
                 });
                 break;
         }

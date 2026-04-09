@@ -207,7 +207,7 @@ class DashboardController extends Controller
 
     public function manager(Request $request): JsonResponse
     {
-        $role = auth()->user()->role->value ?? auth()->user()->role;
+        $role = $this->authRole();
         abort_unless($role === 'manager', 403);
         return response()->json(['message' => 'Use web route']);
     }
@@ -219,9 +219,9 @@ class DashboardController extends Controller
 
     private function authRole(): string
     {
-        $role = auth()->user()->role;
+        $role = auth()->user()?->role;
 
-        return $role instanceof \App\Enums\Role ? $role->value : (string) $role;
+        return $role instanceof \App\Enums\Role ? $role->value : (string) ($role ?? '');
     }
 
     private function canViewTeamActivityReport(string $role): bool

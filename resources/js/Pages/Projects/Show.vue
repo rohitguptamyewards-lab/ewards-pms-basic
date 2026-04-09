@@ -469,9 +469,10 @@ function formatDate(d) {
     return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 function formatTime(t) {
-    if (!t) return '';
+    if (!t || !t.includes(':')) return '';
     const [h, m] = t.split(':');
     const hr = parseInt(h);
+    if (isNaN(hr)) return t;
     return `${hr > 12 ? hr - 12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
 }
 function timeAgo(d) {

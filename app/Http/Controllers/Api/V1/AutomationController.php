@@ -15,7 +15,7 @@ class AutomationController extends Controller
     private function authorizeManager(): void
     {
         abort_unless(
-            in_array(auth()->user()?->role, ['manager', 'analyst_head']),
+            in_array($this->authRole(), ['manager', 'analyst_head']),
             403,
             'Only managers and analyst heads can manage automations.'
         );
@@ -214,7 +214,7 @@ class AutomationController extends Controller
 
     private function authRole(): string
     {
-        $role = auth()->user()->role;
-        return $role instanceof \App\Enums\Role ? $role->value : (string) $role;
+        $role = auth()->user()?->role;
+        return $role instanceof \App\Enums\Role ? $role->value : (string) ($role ?? '');
     }
 }

@@ -278,9 +278,10 @@ function formatDate(d) {
 }
 
 function formatTime(t) {
-    if (!t) return '';
+    if (!t || !t.includes(':')) return '';
     const [h, m] = t.split(':');
     const hr = parseInt(h);
+    if (isNaN(hr)) return t;
     const ampm = hr >= 12 ? 'PM' : 'AM';
     const hr12 = hr % 12 || 12;
     return `${hr12}:${m} ${ampm}`;

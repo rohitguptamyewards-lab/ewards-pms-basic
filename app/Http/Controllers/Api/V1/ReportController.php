@@ -62,9 +62,10 @@ class ReportController extends Controller
                 DB::raw('(SELECT COUNT(DISTINCT pw.project_id) FROM project_workers pw WHERE pw.user_id = team_members.id) as project_count'),
                 DB::raw('(SELECT COUNT(DISTINCT pw.project_id) FROM project_workers pw INNER JOIN projects p ON pw.project_id = p.id WHERE pw.user_id = team_members.id AND p.status = \'active\' AND p.deleted_at IS NULL) as current_projects'),
                 DB::raw('(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL) as total_hours'),
-                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$monthStart}') as month_hours"),
-                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$weekStart}') as week_hours")
+                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= ?) as month_hours"),
+                DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= ?) as week_hours")
             )
+            ->addBinding([$monthStart, $weekStart], 'select')
             ->whereNull('team_members.deleted_at')
             ->where('team_members.is_active', true)
             ->orderBy('team_members.name')
@@ -152,10 +153,11 @@ class ReportController extends Controller
             $teamUtilization = DB::table('team_members')
                 ->select(
                     'team_members.id', 'team_members.name', 'team_members.role',
-                    DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as month_hours"),
-                    DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$sevenDaysAgo}') as week_hours"),
-                    DB::raw("(SELECT COUNT(DISTINCT wl.project_id) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= '{$thirtyDaysAgo}') as active_projects")
+                    DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= ?) as month_hours"),
+                    DB::raw("(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= ?) as week_hours"),
+                    DB::raw("(SELECT COUNT(DISTINCT wl.project_id) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL AND wl.log_date >= ?) as active_projects")
                 )
+                ->addBinding([$thirtyDaysAgo, $sevenDaysAgo, $thirtyDaysAgo], 'select')
                 ->whereNull('team_members.deleted_at')
                 ->where('team_members.is_active', true)
                 ->orderBy('team_members.name')
@@ -327,8 +329,8 @@ class ReportController extends Controller
 
     private function authRole(): string
     {
-        $role = auth()->user()->role;
-        return $role instanceof \App\Enums\Role ? $role->value : (string) $role;
+        $role = auth()->user()?->role;
+        return $role instanceof \App\Enums\Role ? $role->value : (string) ($role ?? '');
     }
 
     private function canAccessDashboard(string $role): bool

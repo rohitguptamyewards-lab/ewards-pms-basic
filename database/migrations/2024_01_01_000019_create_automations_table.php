@@ -8,6 +8,22 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('automations')) {
+            if (!Schema::hasTable('automation_logs')) {
+                Schema::create('automation_logs', function (Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('automation_id');
+                    $table->string('status');
+                    $table->text('message')->nullable();
+                    $table->json('details')->nullable();
+                    $table->timestamp('created_at');
+                    $table->foreign('automation_id')->references('id')->on('automations')->onDelete('cascade');
+                    $table->index('automation_id');
+                });
+            }
+            return;
+        }
+
         Schema::create('automations', function (Blueprint $table) {
             $table->id();
             $table->string('name');

@@ -22,7 +22,7 @@ class WorkerController extends Controller
 
     public function assignOwner(Request $request, int $projectId): JsonResponse
     {
-        $role = auth()->user()->role->value ?? auth()->user()->role;
+        $role = auth()->user()?->role instanceof \App\Enums\Role ? auth()->user()->role->value : (string) (auth()->user()?->role ?? '');
         abort_unless(in_array($role, ['manager', 'analyst_head']), 403);
 
         $data = $request->validate([
@@ -69,7 +69,7 @@ class WorkerController extends Controller
 
     public function addContributor(Request $request, int $projectId): JsonResponse
     {
-        $role = auth()->user()->role->value ?? auth()->user()->role;
+        $role = auth()->user()?->role instanceof \App\Enums\Role ? auth()->user()->role->value : (string) (auth()->user()?->role ?? '');
         abort_unless(in_array($role, ['manager', 'analyst_head']), 403);
 
         $data = $request->validate([
@@ -98,7 +98,7 @@ class WorkerController extends Controller
 
     public function removeContributor(int $projectId, int $userId): JsonResponse
     {
-        $role = auth()->user()->role->value ?? auth()->user()->role;
+        $role = auth()->user()?->role instanceof \App\Enums\Role ? auth()->user()->role->value : (string) (auth()->user()?->role ?? '');
         abort_unless(in_array($role, ['manager', 'analyst_head']), 403);
 
         $worker = DB::table('project_workers')
