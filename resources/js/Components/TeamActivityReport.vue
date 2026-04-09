@@ -12,10 +12,12 @@ const props = defineProps({
 const page = usePage();
 const ALLOWED_ROLES = ['manager', 'analyst_head', 'senior_developer'];
 const PERIOD_OPTIONS = [
-    { key: '1day', label: '1 Day' },
+    { key: 'previous_day', label: 'Previous Day' },
     { key: '2days', label: '2 Days' },
     { key: '1week', label: '1 Week' },
     { key: '2weeks', label: '2 Weeks' },
+    { key: '3weeks', label: '3 Weeks' },
+    { key: '1month', label: '1 Month' },
     { key: 'custom', label: 'Custom' },
 ];
 
@@ -38,7 +40,7 @@ const canViewReport = computed(() => ALLOWED_ROLES.includes(role.value));
 
 const selectedProject = ref('');
 const selectedUser = ref('');
-const activePeriod = ref('1day');
+const activePeriod = ref('previous_day');
 const customFrom = ref('');
 const customTo = ref('');
 const loading = ref(false);
@@ -88,18 +90,22 @@ function formatDate(value) {
 
 function getRangeForPeriod(period) {
     switch (period) {
-        case '1day':
-            return { from: toDateInput(), to: toDateInput() };
+        case 'previous_day':
+            return { from: daysAgo(1), to: daysAgo(1) };
         case '2days':
             return { from: daysAgo(1), to: toDateInput() };
         case '1week':
             return { from: daysAgo(6), to: toDateInput() };
         case '2weeks':
             return { from: daysAgo(13), to: toDateInput() };
+        case '3weeks':
+            return { from: daysAgo(20), to: toDateInput() };
+        case '1month':
+            return { from: daysAgo(29), to: toDateInput() };
         case 'custom':
             return { from: customFrom.value, to: customTo.value };
         default:
-            return { from: toDateInput(), to: toDateInput() };
+            return { from: daysAgo(1), to: daysAgo(1) };
     }
 }
 
@@ -168,7 +174,7 @@ function setPeriod(period) {
     if (period === 'custom' && (!customFrom.value || !customTo.value)) {
         const currentRange = normalizedRange.value.from && normalizedRange.value.to
             ? normalizedRange.value
-            : getRangeForPeriod('1day');
+            : getRangeForPeriod('previous_day');
 
         customFrom.value = currentRange.from;
         customTo.value = currentRange.to;
