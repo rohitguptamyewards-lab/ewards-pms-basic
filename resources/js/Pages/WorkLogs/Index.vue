@@ -157,7 +157,7 @@ function buildWorkLogPayload() {
 
 // --- Add entry ---
 async function addEntry() {
-    if (!canSubmitProjectSelection.value || !form.value.start_time || !form.value.end_time) return;
+    if (!canSubmitProjectSelection.value || !form.value.note?.trim() || !form.value.start_time || !form.value.end_time) return;
     submitting.value = true;
     formErrors.value = {};
 
@@ -378,14 +378,16 @@ const selectedProjectName = computed(() => {
 
             <!-- Input row -->
             <div class="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
-                <!-- Note input -->
+                <!-- Note input (required) -->
                 <div class="flex-1 min-w-0">
                     <input
                         v-model="form.note"
                         type="text"
-                        placeholder="What have you worked on?"
-                        class="w-full border-0 border-b border-transparent bg-transparent px-0 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-b focus:border-[#4e1a77] focus:outline-none focus:ring-0"
+                        placeholder="What have you worked on? *"
+                        class="w-full border-0 border-b bg-transparent px-0 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-b focus:border-[#4e1a77] focus:outline-none focus:ring-0"
+                        :class="formErrors.note ? 'border-red-400' : 'border-transparent'"
                     />
+                    <p v-if="formErrors.note" class="text-xs text-red-500 mt-0.5">{{ formErrors.note[0] }}</p>
                 </div>
 
                 <!-- Project dropdown -->
@@ -395,9 +397,9 @@ const selectedProjectName = computed(() => {
                         class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
                         :class="{ 'border-red-400': formErrors.project_id || formErrors.project_name }"
                     >
-                        <option value="">Project</option>
+                        <option value="">Project *</option>
                         <option :value="CUSTOM_PROJECT_VALUE">+ Add custom work</option>
-                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
+                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}{{ p.custom_task_type === 'worklog_custom_project' && p.created_by_name ? ` (added by ${p.created_by_name})` : '' }}</option>
                     </select>
                 </div>
 
@@ -445,7 +447,7 @@ const selectedProjectName = computed(() => {
                     <!-- ADD button -->
                     <button
                         @click="addEntry"
-                        :disabled="submitting || !canSubmitProjectSelection || !form.start_time || !form.end_time"
+                        :disabled="submitting || !canSubmitProjectSelection || !form.note?.trim() || !form.start_time || !form.end_time"
                         class="shrink-0 rounded-lg bg-[#4e1a77] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#3d1560] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         ADD
@@ -466,7 +468,7 @@ const selectedProjectName = computed(() => {
                         <button
                             v-if="!timerRunning"
                             @click="startTimer"
-                            :disabled="!canSubmitProjectSelection"
+                            :disabled="!canSubmitProjectSelection || !form.note?.trim()"
                             class="shrink-0 rounded-lg bg-[#4e1a77] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#3d1560] disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             START

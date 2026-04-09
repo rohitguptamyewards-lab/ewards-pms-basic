@@ -97,7 +97,7 @@ function submit() {
                     <select v-model="form.project_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77] transition-colors" :class="{ 'border-red-400 bg-red-50': form.errors.project_id || form.errors.project_name }">
                         <option value="">Select project</option>
                         <option :value="CUSTOM_PROJECT_VALUE">+ Add custom work</option>
-                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
+                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}{{ p.custom_task_type === 'worklog_custom_project' && p.created_by_name ? ` (added by ${p.created_by_name})` : '' }}</option>
                     </select>
                     <p v-if="form.errors.project_id" class="mt-1 text-xs text-red-500">{{ form.errors.project_id }}</p>
                     <p v-if="form.errors.project_name" class="mt-1 text-xs text-red-500">{{ form.errors.project_name }}</p>
@@ -154,10 +154,11 @@ function submit() {
                     </select>
                 </div>
 
-                <!-- Note -->
+                <!-- Note (required) -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
-                    <textarea v-model="form.note" rows="3" placeholder="What did you work on?" class="block w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77] transition-colors" />
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                    <textarea v-model="form.note" rows="3" placeholder="What did you work on?" class="block w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77] transition-colors" :class="{ 'border-red-400 bg-red-50': form.errors.note }" />
+                    <p v-if="form.errors.note" class="mt-1 text-xs text-red-500">{{ form.errors.note }}</p>
                 </div>
 
                 <!-- Blocker (shown when status is blocked) -->
@@ -170,7 +171,7 @@ function submit() {
                 <!-- Actions -->
                 <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
                     <Link href="/work-logs" class="rounded-lg px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">Cancel</Link>
-                    <button type="submit" :disabled="form.processing || !canSubmitProjectSelection" class="rounded-lg bg-[#4e1a77] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d1560] disabled:opacity-50 transition-colors">
+                    <button type="submit" :disabled="form.processing || !canSubmitProjectSelection || !form.note?.trim()" class="rounded-lg bg-[#4e1a77] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d1560] disabled:opacity-50 transition-colors">
                         Log Work
                     </button>
                 </div>

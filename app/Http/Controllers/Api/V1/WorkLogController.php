@@ -28,11 +28,12 @@ class WorkLogController extends Controller
 
         $workLogs = $this->workLogRepository->findAll($filters);
 
-        // Get all projects for the dropdown (show project names)
+        // Get all projects for the dropdown (show project names + creator for custom projects)
         $projects = DB::table('projects')
-            ->select('id', 'name')
-            ->whereNull('deleted_at')
-            ->orderBy('name')
+            ->leftJoin('team_members as creator', 'projects.created_by', '=', 'creator.id')
+            ->select('projects.id', 'projects.name', 'projects.custom_task_type', 'creator.name as created_by_name')
+            ->whereNull('projects.deleted_at')
+            ->orderBy('projects.name')
             ->get();
 
         // Get team members for filter dropdown (privileged roles only)
@@ -70,9 +71,10 @@ class WorkLogController extends Controller
     public function create(Request $request)
     {
         $projects = DB::table('projects')
-            ->select('id', 'name')
-            ->whereNull('deleted_at')
-            ->orderBy('name')
+            ->leftJoin('team_members as creator', 'projects.created_by', '=', 'creator.id')
+            ->select('projects.id', 'projects.name', 'projects.custom_task_type', 'creator.name as created_by_name')
+            ->whereNull('projects.deleted_at')
+            ->orderBy('projects.name')
             ->get();
 
         // Auto-fill last end time as new start time
