@@ -399,7 +399,7 @@ const selectedProjectName = computed(() => {
                     >
                         <option value="">Project *</option>
                         <option :value="CUSTOM_PROJECT_VALUE">+ Add custom work</option>
-                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}{{ p.custom_task_type === 'worklog_custom_project' && p.created_by_name ? ` (added by ${p.created_by_name})` : '' }}</option>
+                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
                 </div>
 

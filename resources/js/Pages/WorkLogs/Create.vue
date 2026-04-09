@@ -97,7 +97,7 @@ function submit() {
                     <select v-model="form.project_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77] transition-colors" :class="{ 'border-red-400 bg-red-50': form.errors.project_id || form.errors.project_name }">
                         <option value="">Select project</option>
                         <option :value="CUSTOM_PROJECT_VALUE">+ Add custom work</option>
-                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}{{ p.custom_task_type === 'worklog_custom_project' && p.created_by_name ? ` (added by ${p.created_by_name})` : '' }}</option>
+                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
                     <p v-if="form.errors.project_id" class="mt-1 text-xs text-red-500">{{ form.errors.project_id }}</p>
                     <p v-if="form.errors.project_name" class="mt-1 text-xs text-red-500">{{ form.errors.project_name }}</p>

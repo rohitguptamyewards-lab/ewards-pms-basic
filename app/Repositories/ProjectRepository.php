@@ -15,12 +15,14 @@ class ProjectRepository
             ->leftJoin('team_members as analyst', 'projects.analyst_id', '=', 'analyst.id')
             ->leftJoin('team_members as tester', 'projects.analyst_testing_id', '=', 'tester.id')
             ->leftJoin('team_members as dev', 'projects.developer_id', '=', 'dev.id')
+            ->leftJoin('team_members as creator', 'projects.created_by', '=', 'creator.id')
             ->select(
                 'projects.*',
                 'owner.name as owner_name',
                 'analyst.name as analyst_name',
                 'tester.name as analyst_testing_name',
                 'dev.name as developer_name',
+                'creator.name as created_by_name',
                 DB::raw('(SELECT COUNT(*) FROM project_planners WHERE project_planners.project_id = projects.id) as planner_count'),
                 DB::raw('(SELECT COUNT(*) FROM project_planners WHERE project_planners.project_id = projects.id AND project_planners.status = \'done\') as planner_done_count'),
                 DB::raw('(SELECT stage_name FROM project_stages WHERE project_stages.project_id = projects.id ORDER BY project_stages.created_at DESC LIMIT 1) as current_stage')

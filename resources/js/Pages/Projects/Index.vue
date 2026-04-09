@@ -24,6 +24,7 @@ const role = computed(() => page.props.auth?.user?.role);
 const canCreate = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
 const isManagerOrAnalyst = computed(() => ['manager', 'analyst_head', 'analyst'].includes(role.value));
 const canEditPriority = computed(() => ['manager', 'analyst_head', 'analyst', 'senior_developer'].includes(role.value));
+const isCustomWorkSection = computed(() => props.basePath === '/projects/custom-worklog');
 
 // ── Stage Category Filter ──────────────────────────────
 const stageCategoryFilter = ref('');
@@ -323,6 +324,7 @@ const workTypeOptions = [
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Developer</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Analyst Testing</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Priority</th>
+                        <th v-if="isCustomWorkSection" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Added By</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Planners</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                     </tr>
@@ -483,6 +485,11 @@ const workTypeOptions = [
                                     <PriorityBadge :priority="p.priority" />
                                 </div>
                             </template>
+                        </td>
+
+                        <!-- Added By (custom work section only) -->
+                        <td v-if="isCustomWorkSection" class="px-4 py-3">
+                            <span class="text-sm text-gray-600">{{ p.created_by_name || '—' }}</span>
                         </td>
 
                         <!-- Planners -->
