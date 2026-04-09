@@ -46,7 +46,6 @@ const logs = ref([]);
 const totalHours = ref(0);
 const entryCount = ref(0);
 const generatedAt = ref(new Date());
-const reportContent = ref(null);
 
 let debounceTimer = null;
 let activeRequestId = 0;
@@ -243,20 +242,70 @@ function statusLabel(status) {
 }
 
 async function downloadPdf() {
-    if (!reportContent.value) return;
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
 
-    const { default: html2pdf } = await import('html2pdf.js');
+    const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+    });
 
-    await html2pdf()
-        .set({
-            margin: [8, 8, 8, 8],
-            filename: downloadFileName.value,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-        })
-        .from(reportContent.value)
-        .save();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const rows = logs.value.length
+        ? logs.value.map((log) => ([
+            formatDate(log.log_date),
+            log.user_name,
+            log.project_name,
+            log.note || 'No description added',
+            `${Number(log.hours_spent || 0).toFixed(2)}h`,
+            statusLabel(log.status),
+        ]))
+        : [[dateRangeLabel.value, selectedUserLabel.value, selectedProjectLabel.value, 'No project worklogs found for the selected filters.', '0.00h', '—']];
+
+    doc.setFontSize(16);
+    doc.text('Team Activity Report', 14, 16);
+
+    doc.setFontSize(10);
+    doc.setTextColor(90, 90, 90);
+    doc.text(`Period: ${dateRangeLabel.value}`, 14, 22);
+    doc.text(`Project: ${selectedProjectLabel.value}`, 14, 27);
+    doc.text(`Member: ${selectedUserLabel.value}`, 80, 27);
+    doc.text(`Generated: ${generatedAtLabel.value}`, pageWidth - 14, 22, { align: 'right' });
+
+    autoTable(doc, {
+        startY: 32,
+        head: [['Date', 'Member', 'Project', 'Work Description', 'Hours', 'Status']],
+        body: rows,
+        margin: { top: 14, right: 14, bottom: 18, left: 14 },
+        styles: {
+            fontSize: 8,
+            cellPadding: 2.5,
+            overflow: 'linebreak',
+            valign: 'top',
+            textColor: [55, 65, 81],
+        },
+        headStyles: {
+            fillColor: [78, 26, 119],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+        },
+        columnStyles: {
+            0: { cellWidth: 24 },
+            1: { cellWidth: 34 },
+            2: { cellWidth: 42 },
+            3: { cellWidth: 120 },
+            4: { cellWidth: 18, halign: 'right' },
+            5: { cellWidth: 24 },
+        },
+    });
+
+    const finalY = (doc.lastAutoTable?.finalY ?? 32) + 8;
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    doc.text(`Entries: ${entryCount.value}`, 14, finalY);
+    doc.text(`Total: ${totalHoursLabel.value}`, pageWidth - 14, finalY, { align: 'right' });
+    doc.save(downloadFileName.value);
 }
 
 function printReport() {
@@ -372,7 +421,7 @@ function printReport() {
             </div>
         </div>
 
-        <div ref="reportContent" class="px-5 py-4">
+        <div class="px-5 py-4">
             <div class="mb-4 rounded-xl border border-[#e8ddf0] bg-[#f8f4fc] px-4 py-3">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
