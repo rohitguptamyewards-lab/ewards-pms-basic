@@ -17,7 +17,7 @@ const props = defineProps({
 const page = usePage();
 const role = computed(() => page.props.auth?.user?.role);
 const canViewAllWorklogs = computed(() => ['manager', 'analyst_head', 'senior_developer'].includes(role.value));
-const canUseHiddenEodCopy = computed(() => ['employee', 'developer'].includes(role.value));
+const canUseHiddenEodCopy = computed(() => !canViewAllWorklogs.value);
 const CUSTOM_PROJECT_VALUE = '__new_project__';
 const projectsList = computed(() => {
     if (Array.isArray(props.projects)) return props.projects;
@@ -405,7 +405,7 @@ async function copyTodayWorklogs(group) {
 
     try {
         await writeTextToClipboard(buildTodayClipboardText(group));
-        showCopyNotice('Today copied');
+        showCopyNotice('Copied to clipboard');
     } catch (error) {
         showCopyNotice('Copy failed');
     }
