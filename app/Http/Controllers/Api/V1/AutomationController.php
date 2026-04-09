@@ -12,8 +12,19 @@ class AutomationController extends Controller
 {
     public function __construct(private readonly AutomationService $automationService) {}
 
+    private function authorizeManager(): void
+    {
+        abort_unless(
+            in_array(auth()->user()?->role, ['manager', 'analyst_head']),
+            403,
+            'Only managers and analyst heads can manage automations.'
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeManager();
+
         $automations = DB::table('automations')
             ->leftJoin('team_members', 'automations.created_by', '=', 'team_members.id')
             ->select('automations.*', 'team_members.name as created_by_name')
@@ -56,6 +67,8 @@ class AutomationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeManager();
+
         $data = $request->validate([
             'name'           => ['required', 'string', 'max:255'],
             'description'    => ['nullable', 'string'],
@@ -83,6 +96,8 @@ class AutomationController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeManager();
+
         $data = $request->validate([
             'name'           => ['sometimes', 'string', 'max:255'],
             'description'    => ['nullable', 'string'],
@@ -107,12 +122,19 @@ class AutomationController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
+        $this->authorizeManager();
+
+        $automation = DB::table('automations')->where('id', $id)->first();
+        if (!$automation) return response()->json(['message' => 'Not found'], 404);
+
         DB::table('automations')->where('id', $id)->delete();
         return response()->json(['message' => 'Deleted']);
     }
 
     public function toggle(int $id): JsonResponse
     {
+        $this->authorizeManager();
+
         $automation = DB::table('automations')->where('id', $id)->first();
         if (!$automation) return response()->json(['message' => 'Not found'], 404);
 
@@ -126,22 +148,22 @@ class AutomationController extends Controller
 
     public function runNow(int $id): JsonResponse
     {
+        $this->authorizeManager();
+
         $automation = DB::table('automations')->where('id', $id)->first();
         if (!$automation) return response()->json(['message' => 'Not found'], 404);
 
         if ($automation->trigger_type === 'schedule') {
-            $config = json_decode($automation->trigger_config, true);
-            $projects = $this->getMatchedProjects($config);
+            // Force run by clearing last_run_at so the scheduler picks it up
+            DB::table('automations')->where('id', $id)->update(['last_run_at' => null, 'updated_at' => now()]);
 
-            if ($projects->isEmpty()) {
-                return response()->json(['message' => 'No matching projects found.', 'count' => 0]);
+            try {
+                $this->automationService->processScheduledAutomations();
+            } catch (\Throwable $e) {
+                return response()->json(['message' => 'Run failed: ' . $e->getMessage()], 500);
             }
 
-            // Force run the automation
-            DB::table('automations')->where('id', $id)->update(['last_run_at' => null]);
-            $this->automationService->processScheduledAutomations();
-
-            return response()->json(['message' => "Processed {$projects->count()} projects.", 'count' => $projects->count()]);
+            return response()->json(['message' => 'Automation executed successfully.']);
         }
 
         return response()->json(['message' => 'Event-based automations run automatically on trigger.']);

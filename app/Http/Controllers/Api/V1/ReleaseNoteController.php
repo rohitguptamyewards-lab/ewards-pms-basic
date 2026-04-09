@@ -77,16 +77,20 @@ class ReleaseNoteController extends Controller
         // Upload files
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
-                $path = $file->store("release-notes/{$projectId}", 'public');
-                DB::table('release_note_files')->insert([
-                    'release_note_id' => $noteId,
-                    'original_name'   => $file->getClientOriginalName(),
-                    'stored_path'     => $path,
-                    'mime_type'       => $file->getMimeType(),
-                    'size'            => $file->getSize(),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
+                try {
+                    $path = $file->store("release-notes/{$projectId}", 'public');
+                    DB::table('release_note_files')->insert([
+                        'release_note_id' => $noteId,
+                        'original_name'   => $file->getClientOriginalName(),
+                        'stored_path'     => $path,
+                        'mime_type'       => $file->getMimeType(),
+                        'size'            => $file->getSize(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                } catch (\Throwable $e) {
+                    \Log::warning("Release note file upload failed: " . $e->getMessage());
+                }
             }
         }
 
@@ -256,13 +260,15 @@ class ReleaseNoteController extends Controller
         return $notes->toArray();
     }
 
-    private function getNoteById(int $id): object
+    private function getNoteById(int $id): ?object
     {
         $note = DB::table('release_notes')
             ->leftJoin('team_members', 'release_notes.created_by', '=', 'team_members.id')
             ->select('release_notes.*', 'team_members.name as author_name', 'team_members.role as author_role')
             ->where('release_notes.id', $id)
             ->first();
+
+        if (!$note) return null;
 
         $note->files = DB::table('release_note_files')
             ->where('release_note_id', $id)
