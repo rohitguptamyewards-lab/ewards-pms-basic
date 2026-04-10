@@ -12,6 +12,7 @@ const props = defineProps({
     releaseNotes: { type: Array, default: () => [] },
     canCreate: { type: Boolean, default: false },
     canDelete: { type: Boolean, default: false },
+    migrationPending: { type: Boolean, default: false },
 });
 
 const isGlobalView = computed(() => !props.project);
@@ -208,6 +209,11 @@ const fileIconColors = {
                     {{ creatingNote ? 'Creating...' : 'Create' }}
                 </button>
             </div>
+        </div>
+
+        <!-- Migration pending banner -->
+        <div v-if="migrationPending" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+            <strong>Setup required:</strong> The release notes database tables have not been created yet. Please run <code class="bg-amber-100 px-1 rounded">php artisan migrate</code> on your server to enable this feature.
         </div>
 
         <!-- Notes List -->

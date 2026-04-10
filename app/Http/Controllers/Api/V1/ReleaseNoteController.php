@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -31,7 +32,17 @@ class ReleaseNoteController extends Controller
      */
     public function allIndex()
     {
-        $projects = DB::table('projects')->orderBy('name')->get(['id', 'name']);
+        if (!Schema::hasTable('release_notes')) {
+            return Inertia::render('ReleaseNotes/Index', [
+                'projects'     => [],
+                'releaseNotes' => [],
+                'canCreate'    => false,
+                'canDelete'    => false,
+                'migrationPending' => true,
+            ]);
+        }
+
+        $projects = DB::table('projects')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name']);
 
         $allNotes = DB::table('release_notes')
             ->leftJoin('team_members', 'release_notes.created_by', '=', 'team_members.id')
@@ -57,6 +68,7 @@ class ReleaseNoteController extends Controller
             'releaseNotes' => $allNotes->toArray(),
             'canCreate'    => $this->canCreate(),
             'canDelete'    => $this->canDelete(),
+            'migrationPending' => false,
         ]);
     }
 
@@ -65,6 +77,11 @@ class ReleaseNoteController extends Controller
      */
     public function index(Request $request, int $projectId)
     {
+        if (!Schema::hasTable('release_notes')) {
+            if ($request->wantsJson()) return response()->json([]);
+            abort(503, 'Release notes table not yet created. Please run php artisan migrate.');
+        }
+
         $project = DB::table('projects')->where('id', $projectId)->first();
         abort_unless($project, 404);
 

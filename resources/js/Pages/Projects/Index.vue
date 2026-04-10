@@ -670,7 +670,7 @@ const workTypeOptions = [
                                             {{ getInitials(a.name) }}
                                         </div>
                                         <!-- Hover Card -->
-                                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/avatar:block z-20">
+                                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 hidden group-hover/avatar:block z-20">
                                             <div class="bg-white rounded-lg shadow-lg border border-gray-200 px-3 py-2 whitespace-nowrap text-center">
                                                 <p class="text-sm font-medium text-gray-900">{{ a.name }}</p>
                                                 <p class="text-xs text-gray-500">{{ a.role }}</p>
