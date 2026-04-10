@@ -309,16 +309,43 @@ async function addUpdate() {
 }
 
 // ── Workers ─────────────────────────────────────────────
-const workerForm = ref({ user_id: '' });
+const workerForm = ref({ user_ids: [] });
+const showWorkerDropdown = ref(false);
+const addingContributors = ref(false);
+
+const existingWorkerIds = computed(() => new Set(localWorkers.value.map(w => w.user_id)));
+
+const availableMembers = computed(() => {
+    const members = Array.isArray(props.teamMembers) ? props.teamMembers : Object.values(props.teamMembers || {});
+    return members.filter(m => !existingWorkerIds.value.has(m.id));
+});
+
+function toggleWorkerSelection(id) {
+    const idx = workerForm.value.user_ids.indexOf(id);
+    if (idx === -1) workerForm.value.user_ids.push(id);
+    else workerForm.value.user_ids.splice(idx, 1);
+}
+
+function selectedMemberName(id) {
+    const members = Array.isArray(props.teamMembers) ? props.teamMembers : Object.values(props.teamMembers || {});
+    return members.find(m => m.id === id)?.name || id;
+}
 
 async function addContributor() {
-    if (!workerForm.value.user_id) return;
-    await axios.post(`/api/v1/projects/${props.project.id}/workers/contributor`, {
-        user_id: parseInt(workerForm.value.user_id),
-    });
-    const { data } = await axios.get(`/api/v1/projects/${props.project.id}/workers`);
-    localWorkers.value = data;
-    workerForm.value = { user_id: '' };
+    if (!workerForm.value.user_ids.length) return;
+    addingContributors.value = true;
+    try {
+        await Promise.all(
+            workerForm.value.user_ids.map(id =>
+                axios.post(`/api/v1/projects/${props.project.id}/workers/contributor`, { user_id: id })
+            )
+        );
+        const { data } = await axios.get(`/api/v1/projects/${props.project.id}/workers`);
+        localWorkers.value = data;
+        workerForm.value = { user_ids: [] };
+        showWorkerDropdown.value = false;
+    } catch (e) { console.error('Failed to add contributors', e); }
+    addingContributors.value = false;
 }
 
 async function removeWorker(userId) {
@@ -1078,13 +1105,61 @@ async function deleteNoteLink(noteId, linkId) {
                     </div>
 
                     <div v-if="isManagerOrAnalyst" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                        <h3 class="text-sm font-semibold text-gray-900 mb-2">Add Contributor</h3>
-                        <div class="flex gap-2">
-                            <select v-model="workerForm.user_id" class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
-                                <option value="">Select team member</option>
-                                <option v-for="m in teamMembers" :key="m.id" :value="m.id">{{ m.name }} ({{ m.role }})</option>
-                            </select>
-                            <button @click="addContributor" class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560]">Add</button>
+                        <h3 class="text-sm font-semibold text-gray-900 mb-2">Add Contributors</h3>
+
+                        <!-- Selected tags -->
+                        <div v-if="workerForm.user_ids.length" class="flex flex-wrap gap-1.5 mb-2">
+                            <span
+                                v-for="id in workerForm.user_ids" :key="id"
+                                class="inline-flex items-center gap-1 rounded-full bg-[#f5f0ff] border border-[#ddd0f7] px-2.5 py-1 text-xs font-medium text-[#4e1a77]"
+                            >
+                                {{ selectedMemberName(id) }}
+                                <button @click="toggleWorkerSelection(id)" class="text-[#4e1a77]/60 hover:text-[#4e1a77]">&times;</button>
+                            </span>
+                        </div>
+
+                        <!-- Dropdown trigger -->
+                        <div class="relative">
+                            <button
+                                @click="showWorkerDropdown = !showWorkerDropdown"
+                                class="w-full flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2 text-sm text-left hover:border-[#4e1a77] focus:outline-none focus:border-[#4e1a77]"
+                                :class="showWorkerDropdown ? 'border-[#4e1a77] ring-1 ring-[#4e1a77]' : ''"
+                            >
+                                <span :class="workerForm.user_ids.length ? 'text-gray-700' : 'text-gray-400'">
+                                    {{ workerForm.user_ids.length ? `${workerForm.user_ids.length} member(s) selected` : 'Select team members...' }}
+                                </span>
+                                <svg class="h-4 w-4 text-gray-400 transition-transform" :class="{ 'rotate-180': showWorkerDropdown }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                            </button>
+
+                            <!-- Dropdown list -->
+                            <div v-if="showWorkerDropdown" class="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-52 overflow-y-auto">
+                                <p v-if="!availableMembers.length" class="px-3 py-3 text-xs text-gray-400 text-center">All members already added</p>
+                                <label
+                                    v-for="m in availableMembers" :key="m.id"
+                                    class="flex items-center gap-2.5 px-3 py-2 hover:bg-[#f5f0ff] cursor-pointer transition-colors"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        :value="m.id"
+                                        :checked="workerForm.user_ids.includes(m.id)"
+                                        @change="toggleWorkerSelection(m.id)"
+                                        class="rounded border-gray-300 text-[#4e1a77] focus:ring-[#4e1a77]"
+                                    />
+                                    <span class="text-sm text-gray-700">{{ m.name }}</span>
+                                    <span class="ml-auto text-[10px] capitalize text-gray-400">{{ m.role?.replace('_', ' ') }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Add button -->
+                        <div class="flex justify-end mt-3">
+                            <button
+                                @click="addContributor"
+                                :disabled="!workerForm.user_ids.length || addingContributors"
+                                class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560] disabled:opacity-50"
+                            >
+                                {{ addingContributors ? 'Adding...' : `Add ${workerForm.user_ids.length > 1 ? workerForm.user_ids.length + ' Members' : 'Member'}` }}
+                            </button>
                         </div>
                     </div>
 
