@@ -30,7 +30,8 @@ const mode = ref('manual');
 
 // --- Form state ---
 const form = ref({
-    project_id: '',
+    project_ids: [],   // multi-select (up to 3)
+    project_id: '',    // kept for custom work only
     project_name: '',
     log_date: new Date().toISOString().split('T')[0],
     start_time: '',
@@ -38,6 +39,32 @@ const form = ref({
     note: '',
     blocker: '',
 });
+
+const showProjectDropdown = ref(false);
+
+function toggleProjectSelection(id) {
+    if (id === CUSTOM_PROJECT_VALUE) {
+        form.value.project_id = form.value.project_id === CUSTOM_PROJECT_VALUE ? '' : CUSTOM_PROJECT_VALUE;
+        form.value.project_ids = [];
+        return;
+    }
+    form.value.project_id = '';
+    form.value.project_name = '';
+    const idx = form.value.project_ids.indexOf(id);
+    if (idx !== -1) {
+        form.value.project_ids.splice(idx, 1);
+    } else if (form.value.project_ids.length < 3) {
+        form.value.project_ids.push(id);
+    }
+}
+
+function removeProjectSelection(id) {
+    form.value.project_ids = form.value.project_ids.filter(p => p !== id);
+}
+
+function projectName(id) {
+    return projectsList.value.find(p => p.id == id)?.name || id;
+}
 
 const formErrors = ref({});
 const submitting = ref(false);
@@ -130,33 +157,23 @@ const calculatedDuration = computed(() => {
 });
 
 const canSubmitProjectSelection = computed(() => {
-    if (!form.value.project_id) return false;
-    if (form.value.project_id === CUSTOM_PROJECT_VALUE) {
-        return !!form.value.project_name?.trim();
-    }
-    return true;
+    if (form.value.project_ids.length > 0) return true;
+    if (form.value.project_id === CUSTOM_PROJECT_VALUE) return !!form.value.project_name?.trim();
+    return false;
 });
 
-function buildWorkLogPayload() {
-    if (form.value.project_id === CUSTOM_PROJECT_VALUE) {
-        return {
-            project_name: form.value.project_name.trim(),
-            log_date: form.value.log_date,
-            start_time: form.value.start_time,
-            end_time: form.value.end_time,
-            note: form.value.note,
-            blocker: form.value.blocker,
-        };
-    }
-
-    return {
-        project_id: parseInt(form.value.project_id, 10),
+function buildWorkLogPayloads() {
+    const base = {
         log_date: form.value.log_date,
         start_time: form.value.start_time,
         end_time: form.value.end_time,
         note: form.value.note,
         blocker: form.value.blocker,
     };
+    if (form.value.project_id === CUSTOM_PROJECT_VALUE) {
+        return [{ ...base, project_name: form.value.project_name.trim() }];
+    }
+    return form.value.project_ids.map(id => ({ ...base, project_id: parseInt(id, 10) }));
 }
 
 // --- Add entry ---
@@ -166,12 +183,13 @@ async function addEntry() {
     formErrors.value = {};
 
     try {
-        const payload = buildWorkLogPayload();
-        const { data } = await axios.post('/api/v1/work-logs', payload);
+        const payloads = buildWorkLogPayloads();
+        await Promise.all(payloads.map(p => axios.post('/api/v1/work-logs', p)));
 
-        const nextProjectId = data?.project_id ?? form.value.project_id;
+        const keptIds = [...form.value.project_ids];
         form.value = {
-            project_id: nextProjectId,
+            project_ids: keptIds,
+            project_id: '',
             project_name: '',
             log_date: new Date().toISOString().split('T')[0],
             start_time: '',
@@ -179,6 +197,7 @@ async function addEntry() {
             note: '',
             blocker: '',
         };
+        showProjectDropdown.value = false;
         router.reload({ only: ['workLogs', 'weekTotal', 'projects'] });
     } catch (err) {
         if (err.response?.status === 422) {
@@ -437,7 +456,8 @@ async function copyTodayWorklogs(group) {
 // --- Resume a log entry (start timer with same project + note) ---
 function resumeLog(log) {
     mode.value = 'timer';
-    form.value.project_id = log.project_id;
+    form.value.project_ids = log.project_id ? [log.project_id] : [];
+    form.value.project_id = '';
     form.value.note = log.note || '';
     form.value.log_date = todayString();
     if (!timerRunning.value) {
@@ -499,24 +519,83 @@ const selectedProjectName = computed(() => {
                     <p v-if="formErrors.note" class="text-xs text-red-500 mt-0.5">{{ formErrors.note[0] }}</p>
                 </div>
 
-                <!-- Project dropdown -->
-                <div class="shrink-0">
-                    <select
-                        v-model="form.project_id"
-                        class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
-                        :class="{ 'border-red-400': formErrors.project_id || formErrors.project_name }"
+                <!-- Project multi-select (up to 3) -->
+                <div class="shrink-0 relative">
+                    <!-- Selected tags -->
+                    <div v-if="form.project_ids.length || form.project_id === CUSTOM_PROJECT_VALUE" class="flex flex-wrap gap-1 mb-1">
+                        <span
+                            v-for="id in form.project_ids" :key="id"
+                            class="inline-flex items-center gap-1 rounded-full bg-[#f5f0ff] border border-[#ddd0f7] px-2 py-0.5 text-xs font-medium text-[#4e1a77] max-w-[140px]"
+                        >
+                            <span class="truncate">{{ projectName(id) }}</span>
+                            <button type="button" @click.stop="removeProjectSelection(id)" class="text-[#4e1a77]/60 hover:text-[#4e1a77] leading-none">&times;</button>
+                        </span>
+                        <span v-if="form.project_id === CUSTOM_PROJECT_VALUE" class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            Custom
+                            <button type="button" @click.stop="form.project_id = ''; form.project_name = ''" class="text-amber-500 hover:text-amber-700 leading-none">&times;</button>
+                        </span>
+                    </div>
+
+                    <!-- Trigger button -->
+                    <button
+                        type="button"
+                        @click.stop="showProjectDropdown = !showProjectDropdown"
+                        class="flex items-center gap-1.5 rounded-md border bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
+                        :class="(formErrors.project_id || formErrors.project_name) ? 'border-red-400' : (showProjectDropdown ? 'border-[#4e1a77]' : 'border-gray-200')"
                     >
-                        <option value="">Project *</option>
-                        <option :value="CUSTOM_PROJECT_VALUE">+ Add custom work</option>
-                        <option v-for="p in projectsList" :key="p.id" :value="p.id">{{ p.name }}</option>
-                    </select>
+                        <span :class="canSubmitProjectSelection ? 'text-gray-700' : 'text-gray-400'">
+                            {{ form.project_ids.length ? `${form.project_ids.length}/3 project${form.project_ids.length > 1 ? 's' : ''}` : (form.project_id === CUSTOM_PROJECT_VALUE ? 'Custom work' : 'Project *') }}
+                        </span>
+                        <svg class="h-3.5 w-3.5 text-gray-400 transition-transform shrink-0" :class="{ 'rotate-180': showProjectDropdown }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                    </button>
+
+                    <!-- Dropdown -->
+                    <div
+                        v-if="showProjectDropdown"
+                        class="absolute top-full left-0 mt-1 z-30 w-64 rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-y-auto"
+                        @click.stop
+                    >
+                        <div class="px-3 py-1.5 border-b border-gray-100">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Select up to 3 projects</p>
+                        </div>
+                        <!-- Custom work option -->
+                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-amber-50 cursor-pointer transition-colors border-b border-gray-100">
+                            <input
+                                type="checkbox"
+                                :checked="form.project_id === CUSTOM_PROJECT_VALUE"
+                                @change="toggleProjectSelection(CUSTOM_PROJECT_VALUE)"
+                                class="rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+                            />
+                            <span class="text-sm text-amber-700 font-medium">+ Custom work</span>
+                        </label>
+                        <!-- Real projects -->
+                        <label
+                            v-for="p in projectsList"
+                            :key="p.id"
+                            class="flex items-center gap-2.5 px-3 py-2 hover:bg-[#f5f0ff] cursor-pointer transition-colors"
+                            :class="{ 'opacity-40 pointer-events-none': form.project_ids.length >= 3 && !form.project_ids.includes(p.id) && form.project_id !== CUSTOM_PROJECT_VALUE }"
+                        >
+                            <input
+                                type="checkbox"
+                                :checked="form.project_ids.includes(p.id)"
+                                :disabled="form.project_id === CUSTOM_PROJECT_VALUE || (form.project_ids.length >= 3 && !form.project_ids.includes(p.id))"
+                                @change="toggleProjectSelection(p.id)"
+                                class="rounded border-gray-300 text-[#4e1a77] focus:ring-[#4e1a77]"
+                            />
+                            <span class="text-sm text-gray-700 truncate">{{ p.name }}</span>
+                        </label>
+                        <div class="px-3 py-1.5 border-t border-gray-100 flex justify-end">
+                            <button type="button" @click="showProjectDropdown = false" class="text-xs text-[#4e1a77] font-medium hover:underline">Done</button>
+                        </div>
+                    </div>
                 </div>
 
-                <div v-if="form.project_id === CUSTOM_PROJECT_VALUE" class="shrink-0 lg:min-w-[240px]">
+                <!-- Custom work name input -->
+                <div v-if="form.project_id === CUSTOM_PROJECT_VALUE" class="shrink-0 lg:min-w-[200px]">
                     <input
                         v-model="form.project_name"
                         type="text"
-                        placeholder="Enter custom work name"
+                        placeholder="Custom work name *"
                         class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
                         :class="{ 'border-red-400': formErrors.project_name }"
                     />
