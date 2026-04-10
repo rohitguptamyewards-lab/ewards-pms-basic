@@ -195,6 +195,22 @@ function cancelEditName() {
     editingNameId.value = null;
 }
 
+// ── Inline Date Editing ────────────────────────────────────
+const editingDate = reactive({}); // { [projectId_field]: true }
+
+function startEditDate(projectId, field) {
+    editingDate[`${projectId}_${field}`] = true;
+}
+
+async function saveDate(project, field, value) {
+    delete editingDate[`${project.id}_${field}`];
+    if (value === (project[field] || '')) return;
+    try {
+        await axios.put(`/api/v1/projects/${project.id}`, { [field]: value || null });
+        project[field] = value || null;
+    } catch (e) { console.error('Date update failed', e); }
+}
+
 // ── Subtask Tree (expand/collapse & lazy load children) ────
 const expanded = reactive({});
 const children = reactive({});
@@ -655,17 +671,35 @@ const workTypeOptions = [
 
                             <!-- Start Date -->
                             <td class="px-4 py-3">
-                                <span v-if="p.start_date" class="text-xs text-gray-600">{{ formatDate(p.start_date) }}</span>
-                                <span v-else class="text-xs text-gray-400">-</span>
+                                <input
+                                    v-if="editingDate[`${p.id}_start_date`]"
+                                    type="date"
+                                    :value="p.start_date || ''"
+                                    @change="saveDate(p, 'start_date', $event.target.value)"
+                                    @blur="saveDate(p, 'start_date', $event.target.value)"
+                                    class="rounded border border-[#4e1a77] px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-[#4e1a77] w-[110px]"
+                                    autofocus
+                                />
+                                <span v-else @click="startEditDate(p.id, 'start_date')" class="text-xs cursor-pointer rounded px-1 py-0.5 hover:bg-gray-100 transition-colors" :class="p.start_date ? 'text-gray-600' : 'text-gray-400'">
+                                    {{ p.start_date ? formatDate(p.start_date) : 'Set date' }}
+                                </span>
                             </td>
 
                             <!-- Due Date -->
                             <td class="px-4 py-3">
-                                <span v-if="p.due_date" class="text-xs font-medium" :class="isOverdue(p.due_date) ? 'text-red-600' : 'text-gray-600'">
-                                    {{ formatDate(p.due_date) }}
+                                <input
+                                    v-if="editingDate[`${p.id}_due_date`]"
+                                    type="date"
+                                    :value="p.due_date || ''"
+                                    @change="saveDate(p, 'due_date', $event.target.value)"
+                                    @blur="saveDate(p, 'due_date', $event.target.value)"
+                                    class="rounded border border-[#4e1a77] px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-[#4e1a77] w-[110px]"
+                                    autofocus
+                                />
+                                <span v-else @click="startEditDate(p.id, 'due_date')" class="text-xs cursor-pointer rounded px-1 py-0.5 hover:bg-gray-100 transition-colors" :class="isOverdue(p.due_date) ? 'text-red-600 font-medium' : (p.due_date ? 'text-gray-600' : 'text-gray-400')">
+                                    {{ p.due_date ? formatDate(p.due_date) : 'Set date' }}
                                     <span v-if="isOverdue(p.due_date)" class="text-[10px] text-red-500 ml-0.5">overdue</span>
                                 </span>
-                                <span v-else class="text-xs text-gray-400">-</span>
                             </td>
 
                             <!-- Comments -->

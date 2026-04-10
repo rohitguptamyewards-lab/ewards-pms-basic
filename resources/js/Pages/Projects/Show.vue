@@ -201,6 +201,31 @@ function stageLabelFor(val) {
 
 // ── Planner ─────────────────────────────────────────────
 const plannerForm = ref({ title: '', description: '', assigned_to: '', due_date: '', milestone_flag: false });
+const editingPlannerId = ref(null);
+const editPlannerForm = ref({ title: '', description: '', assigned_to: '', due_date: '', milestone_flag: false });
+
+function startEditPlanner(p) {
+    editingPlannerId.value = p.id;
+    editPlannerForm.value = {
+        title: p.title || '',
+        description: p.description || '',
+        assigned_to: p.assigned_to || '',
+        due_date: p.due_date || '',
+        milestone_flag: p.milestone_flag || false,
+    };
+}
+
+async function saveEditPlanner(planner) {
+    const id = editingPlannerId.value;
+    editingPlannerId.value = null;
+    try {
+        const { data } = await axios.put(`/api/v1/planners/${id}`, {
+            ...editPlannerForm.value,
+            assigned_to: editPlannerForm.value.assigned_to ? parseInt(editPlannerForm.value.assigned_to) : null,
+        });
+        Object.assign(planner, data);
+    } catch (e) { console.error('Planner update failed', e); }
+}
 
 async function addPlanner() {
     if (!plannerForm.value.title) return;
@@ -754,14 +779,34 @@ async function deleteNoteLink(noteId, linkId) {
                         <!-- Start Date -->
                         <div class="p-3.5">
                             <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Start Date</p>
-                            <span class="text-sm text-gray-700">{{ project?.start_date ? formatDate(project.start_date) : '-' }}</span>
+                            <input
+                                v-if="editingField === 'start_date'"
+                                type="date"
+                                :value="project?.start_date || ''"
+                                @change="updateProjectField('start_date', $event.target.value || null)"
+                                @blur="updateProjectField('start_date', $event.target.value || null)"
+                                class="rounded border border-[#4e1a77] px-2 py-1 text-sm focus:ring-1 focus:ring-[#4e1a77]"
+                                autofocus
+                            />
+                            <span v-else @click="startEditField('start_date')" class="text-sm cursor-pointer rounded px-1 py-0.5 hover:bg-gray-100 transition-colors" :class="project?.start_date ? 'text-gray-700' : 'text-gray-400'">
+                                {{ project?.start_date ? formatDate(project.start_date) : 'Set date' }}
+                            </span>
                         </div>
 
                         <!-- Due Date -->
                         <div class="p-3.5">
                             <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Due Date</p>
-                            <span class="text-sm" :class="project?.due_date && isOverdue(project.due_date) ? 'text-red-600 font-medium' : 'text-gray-700'">
-                                {{ project?.due_date ? formatDate(project.due_date) : '-' }}
+                            <input
+                                v-if="editingField === 'due_date'"
+                                type="date"
+                                :value="project?.due_date || ''"
+                                @change="updateProjectField('due_date', $event.target.value || null)"
+                                @blur="updateProjectField('due_date', $event.target.value || null)"
+                                class="rounded border border-[#4e1a77] px-2 py-1 text-sm focus:ring-1 focus:ring-[#4e1a77]"
+                                autofocus
+                            />
+                            <span v-else @click="startEditField('due_date')" class="text-sm cursor-pointer rounded px-1 py-0.5 hover:bg-gray-100 transition-colors" :class="project?.due_date && isOverdue(project.due_date) ? 'text-red-600 font-medium' : (project?.due_date ? 'text-gray-700' : 'text-gray-400')">
+                                {{ project?.due_date ? formatDate(project.due_date) : 'Set date' }}
                                 <span v-if="project?.due_date && isOverdue(project.due_date)" class="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">OVERDUE</span>
                             </span>
                         </div>
@@ -873,27 +918,53 @@ async function deleteNoteLink(noteId, linkId) {
                         <div
                             v-for="p in localPlanners"
                             :key="p.id"
-                            class="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
                             :class="{ 'bg-red-50/50': p.due_date && isOverdue(p.due_date) && p.status !== 'done' }"
                         >
-                            <div class="flex items-center gap-3 min-w-0">
-                                <span v-if="p.milestone_flag" class="text-yellow-500 shrink-0" title="Milestone">&#9733;</span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-medium text-gray-900 truncate">{{ p.title }}</p>
-                                    <p class="text-xs text-gray-400">
-                                        {{ p.assignee_name || 'Unassigned' }}
-                                        <span v-if="p.due_date"> &middot; Due: {{ p.due_date }}</span>
-                                    </p>
+                            <!-- Edit form -->
+                            <div v-if="editingPlannerId === p.id" class="px-4 py-3 space-y-2">
+                                <div class="flex flex-wrap gap-2">
+                                    <input v-model="editPlannerForm.title" placeholder="Task title *" class="flex-1 min-w-[180px] rounded-lg border border-[#4e1a77] px-3 py-1.5 text-sm focus:ring-1 focus:ring-[#4e1a77]" />
+                                    <select v-model="editPlannerForm.assigned_to" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
+                                        <option value="">Assignee</option>
+                                        <option v-for="m in teamMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
+                                    </select>
+                                    <input v-model="editPlannerForm.due_date" type="date" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
+                                    <label class="flex items-center gap-1.5 text-xs text-gray-500">
+                                        <input v-model="editPlannerForm.milestone_flag" type="checkbox" class="rounded border-gray-300 text-[#4e1a77] focus:ring-[#4e1a77]" />
+                                        Milestone
+                                    </label>
+                                </div>
+                                <textarea v-model="editPlannerForm.description" rows="2" placeholder="Description (optional)" class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm resize-none focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
+                                <div class="flex justify-end gap-2">
+                                    <button @click="editingPlannerId = null" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+                                    <button @click="saveEditPlanner(p)" :disabled="!editPlannerForm.title" class="rounded-lg bg-[#4e1a77] px-3 py-1 text-xs font-medium text-white hover:bg-[#3d1560] disabled:opacity-50">Save</button>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <select :value="p.status" @change="updatePlannerStatus(p, $event.target.value)" class="rounded border border-gray-200 px-2 py-1 text-xs focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
-                                    <option value="pending">Pending</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="done">Done</option>
-                                    <option value="blocked">Blocked</option>
-                                </select>
-                                <button @click="deletePlanner(p.id)" class="text-gray-300 hover:text-red-500 text-sm" title="Delete">&#10005;</button>
+
+                            <!-- Display row -->
+                            <div v-else class="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span v-if="p.milestone_flag" class="text-yellow-500 shrink-0" title="Milestone">&#9733;</span>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-gray-900 truncate">{{ p.title }}</p>
+                                        <p class="text-xs text-gray-400">
+                                            {{ p.assignee_name || 'Unassigned' }}
+                                            <span v-if="p.due_date"> &middot; Due: {{ p.due_date }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <select :value="p.status" @change="updatePlannerStatus(p, $event.target.value)" class="rounded border border-gray-200 px-2 py-1 text-xs focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
+                                        <option value="pending">Pending</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="done">Done</option>
+                                        <option value="blocked">Blocked</option>
+                                    </select>
+                                    <button @click="startEditPlanner(p)" class="text-gray-400 hover:text-[#4e1a77] transition-colors" title="Edit">
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                                    </button>
+                                    <button @click="deletePlanner(p.id)" class="text-gray-300 hover:text-red-500 transition-colors" title="Delete">&#10005;</button>
+                                </div>
                             </div>
                         </div>
                         <p v-if="!localPlanners?.length" class="px-4 py-8 text-center text-sm text-gray-400">No planner items yet</p>
