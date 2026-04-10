@@ -239,6 +239,33 @@ function closeEdit() {
 const inlineEditId = ref(null);
 const inlineEditValue = ref('');
 
+// ── Inline time edit ──────────────────────────────────────
+const inlineTimeId = ref(null);
+const inlineTimeStart = ref('');
+const inlineTimeEnd = ref('');
+
+function startInlineTime(log) {
+    inlineTimeId.value = log.id;
+    inlineTimeStart.value = (log.start_time || '').slice(0, 5);
+    inlineTimeEnd.value = (log.end_time || '').slice(0, 5);
+}
+
+async function saveInlineTime(log) {
+    const id = inlineTimeId.value;
+    inlineTimeId.value = null;
+    if (inlineTimeStart.value === (log.start_time || '').slice(0, 5) && inlineTimeEnd.value === (log.end_time || '').slice(0, 5)) return;
+    try {
+        await axios.put(`/api/v1/work-logs/${id}`, { start_time: inlineTimeStart.value, end_time: inlineTimeEnd.value });
+        log.start_time = inlineTimeStart.value;
+        log.end_time = inlineTimeEnd.value;
+        router.reload({ only: ['workLogs', 'weekTotal'] });
+    } catch (e) { console.error('Failed to save time', e); }
+}
+
+function cancelInlineTime() {
+    inlineTimeId.value = null;
+}
+
 function startInlineEdit(log) {
     inlineEditId.value = log.id;
     inlineEditValue.value = log.note || '';
@@ -819,8 +846,33 @@ const selectedProjectName = computed(() => {
                             <!-- Billable icon -->
                             <span class="hidden lg:inline text-gray-300 text-sm font-medium">&#8377;</span>
 
-                            <!-- Time range -->
-                            <span class="hidden sm:inline text-xs text-gray-500 font-medium whitespace-nowrap">
+                            <!-- Time range (click to edit) -->
+                            <template v-if="inlineTimeId === log.id">
+                                <input
+                                    v-model="inlineTimeStart"
+                                    type="time"
+                                    class="rounded border border-[#4e1a77] px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#4e1a77] w-[90px]"
+                                    @keydown.enter="saveInlineTime(log)"
+                                    @keydown.esc="cancelInlineTime"
+                                    @click.stop
+                                />
+                                <span class="text-gray-400 text-xs">-</span>
+                                <input
+                                    v-model="inlineTimeEnd"
+                                    type="time"
+                                    class="rounded border border-[#4e1a77] px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#4e1a77] w-[90px]"
+                                    @keydown.enter="saveInlineTime(log)"
+                                    @keydown.esc="cancelInlineTime"
+                                    @blur="saveInlineTime(log)"
+                                    @click.stop
+                                />
+                            </template>
+                            <span
+                                v-else
+                                @click.stop="startInlineTime(log)"
+                                class="hidden sm:inline text-xs text-gray-500 font-medium whitespace-nowrap cursor-text hover:text-[#4e1a77] transition-colors"
+                                title="Click to edit time"
+                            >
                                 {{ formatTime(log.start_time) }} - {{ formatTime(log.end_time) }}
                             </span>
 
