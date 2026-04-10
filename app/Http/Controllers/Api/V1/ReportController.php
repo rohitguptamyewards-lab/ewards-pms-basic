@@ -50,7 +50,7 @@ class ReportController extends Controller
     public function workers(Request $request)
     {
         $role = $this->authRole();
-        abort_unless(in_array($role, ['manager', 'analyst_head', 'senior_developer']), 403);
+        abort_unless(auth()->check(), 403);
 
         $monthStart = now()->startOfMonth()->toDateString();
         $weekStart = now()->startOfWeek()->toDateString();
@@ -247,7 +247,7 @@ class ReportController extends Controller
     public function memberWorklogs(Request $request, int $memberId)
     {
         $role = $this->authRole();
-        abort_unless($this->canViewSensitiveDashboardSections($role), 403);
+        abort_unless(auth()->check(), 403);
 
         $member = DB::table('team_members')->where('id', $memberId)->first();
         if (!$member) abort(404);
