@@ -216,6 +216,30 @@ function closeEdit() {
     editErrors.value = {};
 }
 
+// ── Inline description edit (Clockify-style) ──────────────
+const inlineEditId = ref(null);
+const inlineEditValue = ref('');
+
+function startInlineEdit(log) {
+    inlineEditId.value = log.id;
+    inlineEditValue.value = log.note || '';
+}
+
+async function saveInlineDesc(log) {
+    const id = inlineEditId.value;
+    const newNote = inlineEditValue.value.trim();
+    inlineEditId.value = null;
+    if (newNote === (log.note || '').trim()) return;
+    try {
+        await axios.put(`/api/v1/work-logs/${id}`, { note: newNote });
+        log.note = newNote;
+    } catch (e) { console.error('Failed to save description', e); }
+}
+
+function cancelInlineEdit() {
+    inlineEditId.value = null;
+}
+
 const editDuration = computed(() => {
     const sec = calcDurationSeconds(editForm.value.start_time, editForm.value.end_time);
     if (sec <= 0) return '';
@@ -236,9 +260,7 @@ async function saveEdit() {
             log_date: editForm.value.log_date,
             start_time: editForm.value.start_time,
             end_time: editForm.value.end_time,
-            status: editForm.value.status,
             note: editForm.value.note,
-            blocker: editForm.value.blocker,
         });
 
         closeEdit();
@@ -673,8 +695,26 @@ const selectedProjectName = computed(() => {
                     >
                         <!-- Description + Project -->
                         <div class="flex-1 min-w-0 flex items-center gap-3">
-                            <p class="text-sm text-gray-800 truncate" :class="{ 'text-gray-400 italic': !log.note }">
-                                {{ log.note || 'No description' }}
+                            <!-- Inline editable description -->
+                            <input
+                                v-if="inlineEditId === log.id"
+                                :value="inlineEditValue"
+                                @input="inlineEditValue = $event.target.value"
+                                @blur="saveInlineDesc(log)"
+                                @keydown.enter="saveInlineDesc(log)"
+                                @keydown.esc="cancelInlineEdit"
+                                class="flex-1 min-w-0 rounded border border-[#4e1a77] px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#4e1a77]"
+                                autofocus
+                                @click.stop
+                            />
+                            <p
+                                v-else
+                                @click.stop="startInlineEdit(log)"
+                                class="text-sm truncate cursor-text hover:text-[#4e1a77] transition-colors"
+                                :class="log.note ? 'text-gray-800' : 'text-gray-400 italic'"
+                                title="Click to edit description"
+                            >
+                                {{ log.note || 'Add description...' }}
                             </p>
                             <Link
                                 :href="`/projects/${log.project_id}`"
@@ -835,34 +875,13 @@ const selectedProjectName = computed(() => {
                     </div>
 
                     <div>
-                        <label class="mb-1 block text-xs font-medium text-gray-500">Status</label>
-                        <select
-                            v-model="editForm.status"
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
-                        >
-                            <option value="done">Done</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="blocked">Blocked</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="mb-1 block text-xs font-medium text-gray-500">Note</label>
+                        <label class="mb-1 block text-xs font-medium text-gray-500">Description</label>
                         <textarea
                             v-model="editForm.note"
-                            rows="2"
+                            rows="3"
+                            placeholder="What did you work on?"
                             class="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]"
                             :class="{ 'border-red-400': editErrors.note }"
-                        />
-                    </div>
-
-                    <div v-if="editForm.status === 'blocked'">
-                        <label class="mb-1 block text-xs font-medium text-red-600">Blocker</label>
-                        <textarea
-                            v-model="editForm.blocker"
-                            rows="2"
-                            class="w-full resize-none rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                            :class="{ 'border-red-400': editErrors.blocker }"
                         />
                     </div>
 
