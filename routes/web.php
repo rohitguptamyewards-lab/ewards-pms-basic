@@ -38,6 +38,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/automations', [\App\Http\Controllers\Api\V1\AutomationController::class, 'index'])->name('automations.index');
 
     // Release Notes
+    Route::get('/release-notes', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'allIndex'])->name('release-notes.all');
     Route::get('/projects/{projectId}/release-notes', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'index'])->name('release-notes.index');
 
     // Team Members

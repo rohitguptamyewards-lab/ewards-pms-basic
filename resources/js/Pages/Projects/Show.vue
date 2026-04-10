@@ -516,7 +516,7 @@ const newNote = ref({ title: '', description: '', links: [] });
 const newNoteFiles = ref(null);
 const creatingNote = ref(false);
 const newLinkForm = ref({ label: '', url: '' });
-const canCreateNote = computed(() => ['manager', 'analyst_head', 'analyst', 'senior_developer'].includes(role.value));
+const canCreateNote = computed(() => !!role.value);
 const canDeleteNote = computed(() => ['manager', 'analyst_head'].includes(role.value));
 
 async function loadReleaseNotes() {

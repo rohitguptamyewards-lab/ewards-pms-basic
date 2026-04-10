@@ -18,12 +18,46 @@ class ReleaseNoteController extends Controller
 
     private function canCreate(): bool
     {
-        return in_array($this->authRole(), ['manager', 'analyst_head', 'analyst', 'senior_developer']);
+        return auth()->check();
     }
 
     private function canDelete(): bool
     {
         return in_array($this->authRole(), ['manager', 'analyst_head']);
+    }
+
+    /**
+     * Web page: list all release notes across all projects.
+     */
+    public function allIndex()
+    {
+        $projects = DB::table('projects')->orderBy('name')->get(['id', 'name']);
+
+        $allNotes = DB::table('release_notes')
+            ->leftJoin('team_members', 'release_notes.created_by', '=', 'team_members.id')
+            ->leftJoin('projects', 'release_notes.project_id', '=', 'projects.id')
+            ->select('release_notes.*', 'team_members.name as author_name', 'team_members.role as author_role', 'projects.name as project_name')
+            ->orderByDesc('release_notes.created_at')
+            ->get();
+
+        foreach ($allNotes as $note) {
+            $note->files = DB::table('release_note_files')
+                ->where('release_note_id', $note->id)
+                ->orderByDesc('created_at')
+                ->get()->toArray();
+
+            $note->links = DB::table('release_note_links')
+                ->where('release_note_id', $note->id)
+                ->orderByDesc('created_at')
+                ->get()->toArray();
+        }
+
+        return Inertia::render('ReleaseNotes/Index', [
+            'projects'     => $projects,
+            'releaseNotes' => $allNotes->toArray(),
+            'canCreate'    => $this->canCreate(),
+            'canDelete'    => $this->canDelete(),
+        ]);
     }
 
     /**

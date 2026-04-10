@@ -8,14 +8,17 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     project: Object,
+    projects: { type: Array, default: () => [] },
     releaseNotes: { type: Array, default: () => [] },
     canCreate: { type: Boolean, default: false },
     canDelete: { type: Boolean, default: false },
 });
 
+const isGlobalView = computed(() => !props.project);
+
 const notes = ref([...props.releaseNotes]);
 const showCreateNote = ref(false);
-const newNote = ref({ title: '', description: '', links: [] });
+const newNote = ref({ title: '', description: '', links: [], project_id: '' });
 const newNoteFiles = ref(null);
 const creatingNote = ref(false);
 const newLinkForm = ref({ label: '', url: '' });
@@ -31,7 +34,8 @@ function removeNoteLink(idx) {
 }
 
 async function createReleaseNote() {
-    if (!newNote.value.title) return;
+    const projectId = isGlobalView.value ? newNote.value.project_id : props.project.id;
+    if (!newNote.value.title || !projectId) return;
     creatingNote.value = true;
     try {
         const formData = new FormData();
@@ -47,11 +51,17 @@ async function createReleaseNote() {
             formData.append(`links[${i}][url]`, link.url);
         });
 
-        const { data } = await axios.post(`/api/v1/projects/${props.project.id}/release-notes`, formData, {
+        const { data } = await axios.post(`/api/v1/projects/${projectId}/release-notes`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
+
+        if (isGlobalView.value) {
+            const project = props.projects.find(p => p.id == projectId);
+            data.project_name = project?.name ?? '';
+        }
+
         notes.value.unshift(data);
-        newNote.value = { title: '', description: '', links: [] };
+        newNote.value = { title: '', description: '', links: [], project_id: '' };
         if (newNoteFiles.value) newNoteFiles.value.value = '';
         showCreateNote.value = false;
     } catch (e) {
@@ -116,23 +126,31 @@ const fileIconColors = {
 </script>
 
 <template>
-    <Head :title="`Release Notes - ${project?.name}`" />
+    <Head :title="isGlobalView ? 'Release Notes' : `Release Notes - ${project?.name}`" />
 
     <div class="space-y-4">
         <!-- Breadcrumb -->
         <div class="flex items-center gap-2 text-sm text-gray-500">
-            <Link href="/projects" class="hover:text-[#4e1a77]">Projects</Link>
-            <span>/</span>
-            <Link :href="`/projects/${project?.id}`" class="hover:text-[#4e1a77]">{{ project?.name }}</Link>
-            <span>/</span>
-            <span class="text-gray-900 font-medium">Release Notes</span>
+            <template v-if="isGlobalView">
+                <span class="text-gray-900 font-medium">Release Notes</span>
+            </template>
+            <template v-else>
+                <Link href="/projects" class="hover:text-[#4e1a77]">Projects</Link>
+                <span>/</span>
+                <Link :href="`/projects/${project?.id}`" class="hover:text-[#4e1a77]">{{ project?.name }}</Link>
+                <span>/</span>
+                <span class="text-gray-900 font-medium">Release Notes</span>
+            </template>
         </div>
 
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-xl font-bold text-gray-900">Release Notes</h1>
-                <p class="text-sm text-gray-500 mt-0.5">{{ project?.name }} &middot; {{ notes.length }} note(s)</p>
+                <p class="text-sm text-gray-500 mt-0.5">
+                    <template v-if="isGlobalView">All projects &middot; {{ notes.length }} note(s)</template>
+                    <template v-else>{{ project?.name }} &middot; {{ notes.length }} note(s)</template>
+                </p>
             </div>
             <button v-if="canCreate && !showCreateNote" @click="showCreateNote = true" class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560] flex items-center gap-2">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -148,6 +166,16 @@ const fileIconColors = {
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
+
+            <!-- Project selector (global view only) -->
+            <div v-if="isGlobalView">
+                <label class="text-xs font-medium text-gray-500 mb-1 block">Project *</label>
+                <select v-model="newNote.project_id" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
+                    <option value="" disabled>Select a project</option>
+                    <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+                </select>
+            </div>
+
             <div>
                 <label class="text-xs font-medium text-gray-500 mb-1 block">Title *</label>
                 <input v-model="newNote.title" placeholder="e.g. v2.1.0 Release" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
@@ -176,7 +204,7 @@ const fileIconColors = {
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <button @click="showCreateNote = false" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
-                <button @click="createReleaseNote" :disabled="!newNote.title || creatingNote" class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560] disabled:opacity-50">
+                <button @click="createReleaseNote" :disabled="!newNote.title || (isGlobalView && !newNote.project_id) || creatingNote" class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560] disabled:opacity-50">
                     {{ creatingNote ? 'Creating...' : 'Create' }}
                 </button>
             </div>
@@ -187,6 +215,7 @@ const fileIconColors = {
             <div class="px-6 py-5">
                 <div class="flex items-start justify-between gap-3">
                     <div>
+                        <div v-if="isGlobalView && note.project_name" class="text-xs font-medium text-[#4e1a77] mb-1">{{ note.project_name }}</div>
                         <h3 class="text-lg font-semibold text-gray-900">{{ note.title }}</h3>
                         <p class="text-xs text-gray-400 mt-1">
                             By {{ note.author_name }} <span class="capitalize">({{ note.author_role }})</span>

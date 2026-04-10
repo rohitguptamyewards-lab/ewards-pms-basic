@@ -278,13 +278,15 @@ async function downloadPdf() {
     const rows = logs.value.length
         ? logs.value.map((log) => ([
             formatDate(log.log_date),
+            (log.start_time || '').slice(0, 5) || '—',
+            (log.end_time || '').slice(0, 5) || '—',
             log.user_name,
             log.project_name,
             log.note || 'No description added',
             `${Number(log.hours_spent || 0).toFixed(2)}h`,
             projectStageLabel(log),
         ]))
-        : [[dateRangeLabel.value, selectedUserLabel.value, selectedProjectLabel.value, 'No project worklogs found for the selected filters.', '0.00h', '—']];
+        : [[dateRangeLabel.value, '—', '—', selectedUserLabel.value, selectedProjectLabel.value, 'No project worklogs found for the selected filters.', '0.00h', '—']];
 
     doc.setFontSize(16);
     doc.text('Team Activity Report', 14, 16);
@@ -298,7 +300,7 @@ async function downloadPdf() {
 
     autoTable(doc, {
         startY: 32,
-        head: [['Date', 'Member', 'Project', 'Work Description', 'Hours', 'Project Stage']],
+        head: [['Date', 'Time Start', 'Time End', 'Member', 'Project', 'Work Description', 'Hours', 'Project Stage']],
         body: rows,
         margin: { top: 14, right: 14, bottom: 18, left: 14 },
         styles: {
@@ -314,12 +316,14 @@ async function downloadPdf() {
             fontStyle: 'bold',
         },
         columnStyles: {
-            0: { cellWidth: 24 },
-            1: { cellWidth: 34 },
-            2: { cellWidth: 42 },
-            3: { cellWidth: 120 },
-            4: { cellWidth: 18, halign: 'right' },
-            5: { cellWidth: 34 },
+            0: { cellWidth: 22 },
+            1: { cellWidth: 18 },
+            2: { cellWidth: 18 },
+            3: { cellWidth: 30 },
+            4: { cellWidth: 36 },
+            5: { cellWidth: 95 },
+            6: { cellWidth: 16, halign: 'right' },
+            7: { cellWidth: 30 },
         },
     });
 
@@ -500,6 +504,8 @@ function printReport() {
                     <thead>
                         <tr class="border-b border-gray-200">
                             <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Date</th>
+                            <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Time Start</th>
+                            <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Time End</th>
                             <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Member</th>
                             <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Project</th>
                             <th class="py-2 pr-4 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400">Work Description</th>
@@ -510,6 +516,8 @@ function printReport() {
                     <tbody class="divide-y divide-gray-100">
                         <tr v-for="log in logs" :key="log.id" class="hover:bg-[#f5f0ff]/20 transition-colors">
                             <td class="py-2.5 pr-4 text-gray-500 whitespace-nowrap">{{ formatDate(log.log_date) }}</td>
+                            <td class="py-2.5 pr-4 text-gray-600 whitespace-nowrap tabular-nums">{{ (log.start_time || '').slice(0, 5) || '—' }}</td>
+                            <td class="py-2.5 pr-4 text-gray-600 whitespace-nowrap tabular-nums">{{ (log.end_time || '').slice(0, 5) || '—' }}</td>
                             <td class="py-2.5 pr-4 font-medium text-gray-800 whitespace-nowrap">{{ log.user_name }}</td>
                             <td class="py-2.5 pr-4 whitespace-nowrap">
                                 <span class="inline-flex items-center rounded-full bg-[#4e1a77]/8 px-2 py-0.5 text-[10px] font-medium text-[#4e1a77]">
@@ -532,7 +540,7 @@ function printReport() {
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 border-gray-200">
-                            <td colspan="4" class="py-2.5 text-xs font-semibold text-gray-500">
+                            <td colspan="6" class="py-2.5 text-xs font-semibold text-gray-500">
                                 {{ entryCount }} {{ entryCount === 1 ? 'entry' : 'entries' }}
                             </td>
                             <td class="py-2.5 pr-4 text-right text-sm font-bold text-[#4e1a77] tabular-nums whitespace-nowrap">

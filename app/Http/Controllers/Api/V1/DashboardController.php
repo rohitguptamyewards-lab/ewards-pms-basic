@@ -168,6 +168,8 @@ class DashboardController extends Controller
                 'work_logs.user_id',
                 'work_logs.project_id',
                 'work_logs.log_date',
+                'work_logs.start_time',
+                'work_logs.end_time',
                 'work_logs.note',
                 'work_logs.hours_spent',
                 'work_logs.status',
