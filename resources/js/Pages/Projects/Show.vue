@@ -1415,11 +1415,7 @@ async function deleteNoteLink(noteId, linkId) {
                                 </button>
                             </div>
                         </div>
-                        <div class="flex items-center justify-between mt-2">
-                            <select v-model="updateForm.source" class="rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-500 focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
-                                <option value="manual">Manual</option>
-                                <option value="ai">AI</option>
-                            </select>
+                        <div class="flex items-center justify-end mt-2">
                             <button
                                 @click="addUpdate"
                                 :disabled="postingUpdate || !updateForm.content.trim()"
@@ -1450,7 +1446,6 @@ async function deleteNoteLink(noteId, linkId) {
                                     <span class="text-xs font-medium" :class="u.source === 'system' ? 'text-gray-500' : 'text-gray-900'">
                                         {{ u.source === 'system' ? 'System' : u.author_name }}
                                     </span>
-                                    <span v-if="u.source === 'ai'" class="rounded-full bg-purple-100 px-1.5 py-0.5 text-[9px] font-medium text-purple-700">AI</span>
                                     <span class="text-[10px] text-gray-400 ml-auto">{{ timeAgo(u.created_at) }}</span>
                                 </div>
                                 <p
