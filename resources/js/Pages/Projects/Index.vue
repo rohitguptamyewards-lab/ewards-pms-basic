@@ -523,22 +523,22 @@ const workTypeOptions = [
 
         <!-- Projects Table with Sticky First Column -->
         <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-x-auto relative">
-            <table class="min-w-[1400px] w-full divide-y divide-gray-200">
+            <table class="min-w-[1800px] w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 min-w-[280px] border-r border-gray-200">Project</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Stage</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Assignees</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Start Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Due Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Comments</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Dependencies</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Work Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Priority</th>
-                        <th v-if="isCustomWorkSection" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Added By</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Planners</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                        <th class="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[300px] min-w-[300px] border-r border-gray-200">Project</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[160px] min-w-[160px]">Stage</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[160px] min-w-[160px]">Assignees</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[120px] min-w-[120px]">Start Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[120px] min-w-[120px]">Due Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[220px] min-w-[220px]">Comments</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[200px] min-w-[200px]">Dependencies</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[120px] min-w-[120px]">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[130px] min-w-[130px]">Work Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[110px] min-w-[110px]">Priority</th>
+                        <th v-if="isCustomWorkSection" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[130px] min-w-[130px]">Added By</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[140px] min-w-[140px]">Planners</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 w-[100px] min-w-[100px]">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -669,10 +669,10 @@ const workTypeOptions = [
                             </td>
 
                             <!-- Comments -->
-                            <td class="px-4 py-3">
+                            <td class="px-4 py-3 overflow-hidden">
                                 <button
                                     @click="openComments(p)"
-                                    class="text-left group/comment max-w-[160px]"
+                                    class="text-left group/comment w-full max-w-[188px]"
                                 >
                                     <div v-if="p.last_comment" class="flex items-start gap-1 relative group/tooltip">
                                         <svg class="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
@@ -697,8 +697,8 @@ const workTypeOptions = [
                             </td>
 
                             <!-- Dependencies -->
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1 max-w-[140px]">
+                            <td class="px-4 py-3 overflow-hidden">
+                                <div class="flex items-center gap-1 max-w-[168px]">
                                     <template v-if="getDependencies(p).length">
                                         <div class="flex flex-wrap gap-1">
                                             <span
