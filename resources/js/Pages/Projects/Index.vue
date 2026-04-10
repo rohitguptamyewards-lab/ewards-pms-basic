@@ -410,7 +410,7 @@ function isOverdue(dueDate) {
     return new Date(dueDate) < new Date() && new Date(dueDate).toDateString() !== new Date().toDateString();
 }
 
-function truncateWords(text, wordLimit = 6) {
+function truncateWords(text, wordLimit = 4) {
     if (!text) return '';
     const words = text.trim().split(/\s+/);
     if (words.length <= wordLimit) return text;
@@ -565,7 +565,7 @@ const workTypeOptions = [
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[160px] min-w-[160px]">Assignees</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[120px] min-w-[120px]">Start Date</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[120px] min-w-[120px]">Due Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[220px] min-w-[220px]">Comments</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[240px] min-w-[240px]">Comments</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[200px] min-w-[200px]">Dependencies</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[120px] min-w-[120px]">Status</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[130px] min-w-[130px]">Work Type</th>
@@ -724,13 +724,13 @@ const workTypeOptions = [
                             <td class="px-4 py-3">
                                 <button
                                     @click="openComments(p)"
-                                    class="text-left group/comment w-full max-w-[188px]"
+                                    class="text-left group/comment w-full max-w-[208px]"
                                 >
                                     <div
                                         v-if="p.last_comment"
                                         class="flex items-start gap-1"
-                                        @mouseenter="p.last_comment.trim().split(/\s+/).length > 6 && showTooltip($event, p.last_comment)"
-                                        @mousemove="p.last_comment.trim().split(/\s+/).length > 6 && moveTooltip($event)"
+                                        @mouseenter="p.last_comment.trim().split(/\s+/).length > 4 && showTooltip($event, p.last_comment)"
+                                        @mousemove="p.last_comment.trim().split(/\s+/).length > 4 && moveTooltip($event)"
                                         @mouseleave="hideTooltip"
                                     >
                                         <svg class="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
