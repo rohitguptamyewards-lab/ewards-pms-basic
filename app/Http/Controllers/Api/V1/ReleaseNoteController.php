@@ -32,7 +32,7 @@ class ReleaseNoteController extends Controller
      */
     public function allIndex()
     {
-        if (!Schema::hasTable('release_notes')) {
+        if (!Schema::hasTable('release_notes') || !Schema::hasTable('release_note_files') || !Schema::hasTable('release_note_links')) {
             return Inertia::render('ReleaseNotes/Index', [
                 'projects'     => [],
                 'releaseNotes' => [],
@@ -77,9 +77,15 @@ class ReleaseNoteController extends Controller
      */
     public function index(Request $request, int $projectId)
     {
-        if (!Schema::hasTable('release_notes')) {
-            if ($request->wantsJson()) return response()->json([]);
-            abort(503, 'Release notes table not yet created. Please run php artisan migrate.');
+        if (!Schema::hasTable('release_notes') || !Schema::hasTable('release_note_files') || !Schema::hasTable('release_note_links')) {
+            if ($request->expectsJson()) return response()->json([]);
+            return Inertia::render('ReleaseNotes/Index', [
+                'project'          => null,
+                'releaseNotes'     => [],
+                'canCreate'        => false,
+                'canDelete'        => false,
+                'migrationPending' => true,
+            ]);
         }
 
         $project = DB::table('projects')->where('id', $projectId)->first();
@@ -87,7 +93,7 @@ class ReleaseNoteController extends Controller
 
         $notes = $this->getNotesForProject($projectId);
 
-        if ($request->wantsJson()) {
+        if ($request->expectsJson()) {
             return response()->json($notes);
         }
 

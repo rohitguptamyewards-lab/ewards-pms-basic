@@ -563,6 +563,7 @@ const activeBlockersCount = computed(() => localBlockers.value.filter(x => x.sta
 const releaseNotes = ref([]);
 const releaseNotesLoaded = ref(false);
 const releaseNotesLoading = ref(false);
+const releaseNotesError = ref(false);
 const showCreateNote = ref(false);
 const newNote = ref({ title: '', description: '', links: [] });
 const newNoteFiles = ref(null);
@@ -574,10 +575,14 @@ const canDeleteNote = computed(() => ['manager', 'analyst_head'].includes(role.v
 async function loadReleaseNotes() {
     if (releaseNotesLoaded.value) return;
     releaseNotesLoading.value = true;
+    releaseNotesError.value = false;
     try {
         const { data } = await axios.get(`/api/v1/projects/${props.project.id}/release-notes`);
-        releaseNotes.value = data;
-    } catch (e) { console.error('Failed to load release notes', e); }
+        releaseNotes.value = Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error('Failed to load release notes', e);
+        releaseNotesError.value = true;
+    }
     releaseNotesLoading.value = false;
     releaseNotesLoaded.value = true;
 }
@@ -1323,6 +1328,11 @@ async function deleteNoteLink(noteId, linkId) {
                     <!-- Loading -->
                     <div v-if="releaseNotesLoading" class="flex items-center justify-center py-12">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4e1a77]"></div>
+                    </div>
+
+                    <!-- Error -->
+                    <div v-if="releaseNotesError" class="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                        Failed to load release notes. Please refresh the page or run <code class="bg-red-100 px-1 rounded">php artisan migrate</code> if the feature has not been set up yet.
                     </div>
 
                     <!-- Notes List -->
