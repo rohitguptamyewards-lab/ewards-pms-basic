@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import axios from 'axios';
+import Toast from '@/Components/Toast.vue';
 
 const page = usePage();
 const url = computed(() => page.url);
@@ -356,4 +357,5 @@ const navItems = computed(() => {
             </main>
         </div>
     </div>
+    <Toast />
 </template>

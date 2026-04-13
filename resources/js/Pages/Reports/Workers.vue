@@ -3,6 +3,9 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import axios from 'axios';
+import { useToast } from '@/composables/useToast';
+
+const { error: toastError } = useToast();
 
 defineOptions({ layout: AppLayout });
 
@@ -108,7 +111,8 @@ async function openMemberDetail(worker) {
         const { data } = await axios.get(`/api/v1/reports/members/${worker.id}/worklogs`);
         memberDetail.value = data;
     } catch (e) {
-        console.error('Failed to load member detail', e);
+        toastError('Failed to load member detail: ' + (e.response?.data?.message || e.message));
+        selectedMember.value = null;
     }
     memberLoading.value = false;
 }

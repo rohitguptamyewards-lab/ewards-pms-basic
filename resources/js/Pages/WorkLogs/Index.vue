@@ -3,6 +3,9 @@ import { ref, computed, onUnmounted } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useToast } from '@/composables/useToast';
+
+const { error: toastError } = useToast();
 
 defineOptions({ layout: AppLayout });
 
@@ -259,7 +262,7 @@ async function saveInlineTime(log) {
         log.start_time = inlineTimeStart.value;
         log.end_time = inlineTimeEnd.value;
         router.reload({ only: ['workLogs', 'weekTotal'] });
-    } catch (e) { console.error('Failed to save time', e); }
+    } catch (e) { toastError('Failed to save time: ' + (e.response?.data?.message || e.message)); }
 }
 
 function cancelInlineTime() {
@@ -279,7 +282,7 @@ async function saveInlineDesc(log) {
     try {
         await axios.put(`/api/v1/work-logs/${id}`, { note: newNote });
         log.note = newNote;
-    } catch (e) { console.error('Failed to save description', e); }
+    } catch (e) { toastError('Failed to save description: ' + (e.response?.data?.message || e.message)); }
 }
 
 function cancelInlineEdit() {

@@ -3,6 +3,9 @@ import { ref, computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useToast } from '@/composables/useToast';
+
+const { error: toastError, success: toastSuccess } = useToast();
 
 defineOptions({ layout: AppLayout });
 
@@ -52,7 +55,7 @@ async function saveEdit(member) {
         editingId.value = null;
         router.reload({ only: ['members'] });
     } catch (e) {
-        console.error('Update failed', e);
+        toastError('Update failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -66,7 +69,7 @@ async function toggleActive(member) {
         await axios.post(`/api/v1/team-members/${member.id}/toggle-active`);
         router.reload({ only: ['members'] });
     } catch (e) {
-        console.error('Toggle failed', e);
+        toastError('Toggle failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -79,10 +82,11 @@ async function resetPassword(member) {
     if (!newPassword.value || newPassword.value.length < 6) return;
     try {
         await axios.put(`/api/v1/team-members/${member.id}`, { password: newPassword.value });
+        toastSuccess('Password updated.');
         resetPasswordId.value = null;
         newPassword.value = '';
     } catch (e) {
-        console.error('Password reset failed', e);
+        toastError('Password reset failed: ' + (e.response?.data?.message || e.message));
     }
 }
 

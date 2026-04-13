@@ -3,6 +3,9 @@ import { ref, computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useToast } from '@/composables/useToast';
+
+const { error: toastError } = useToast();
 
 defineOptions({ layout: AppLayout });
 
@@ -87,7 +90,7 @@ async function createReleaseNote() {
         if (newNoteFiles.value) newNoteFiles.value.value = '';
         showCreateNote.value = false;
     } catch (e) {
-        alert('Failed: ' + (e.response?.data?.message || e.message));
+        toastError('Failed: ' + (e.response?.data?.message || e.message));
     }
     creatingNote.value = false;
 }
@@ -97,7 +100,7 @@ async function deleteNote(id) {
     try {
         await axios.delete(`/api/v1/release-notes/${id}`);
         notes.value = notes.value.filter(n => n.id !== id);
-    } catch (e) { alert('Delete failed: ' + (e.response?.data?.message || e.message)); }
+    } catch (e) { toastError('Delete failed: ' + (e.response?.data?.message || e.message)); }
 }
 
 async function deleteFile(noteId, fileId) {

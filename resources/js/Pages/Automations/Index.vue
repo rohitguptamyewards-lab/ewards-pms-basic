@@ -3,6 +3,9 @@ import { ref, computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useToast } from '@/composables/useToast';
+
+const { error: toastError, success: toastSuccess } = useToast();
 
 defineOptions({ layout: AppLayout });
 
@@ -87,7 +90,7 @@ async function save() {
         router.reload();
     } catch (e) {
         console.error('Save failed', e);
-        alert(e.response?.data?.message || 'Save failed');
+        toastError(e.response?.data?.message || 'Save failed');
     }
     saving.value = false;
 }
@@ -144,10 +147,10 @@ async function deleteAutomation(a) {
 async function runNow(a) {
     try {
         const { data } = await axios.post(`/api/v1/automations/${a.id}/run`);
-        alert(data.message);
+        toastSuccess(data.message || 'Automation triggered.');
         router.reload();
     } catch (e) {
-        alert('Run failed: ' + (e.response?.data?.message || e.message));
+        toastError('Run failed: ' + (e.response?.data?.message || e.message));
     }
 }
 

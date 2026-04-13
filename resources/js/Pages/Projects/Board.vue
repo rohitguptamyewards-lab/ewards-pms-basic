@@ -363,21 +363,21 @@ async function onDrop(event, column) {
                                         class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[9px] font-bold text-blue-700 ring-1 ring-white"
                                         :title="'Analyst: ' + project.analyst_name"
                                     >
-                                        {{ project.analyst_name.charAt(0).toUpperCase() }}
+                                        {{ (project.analyst_name || '?').charAt(0).toUpperCase() }}
                                     </span>
                                     <span
                                         v-if="project.developer_name"
                                         class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-[9px] font-bold text-green-700 ring-1 ring-white"
                                         :title="'Developer: ' + project.developer_name"
                                     >
-                                        {{ project.developer_name.charAt(0).toUpperCase() }}
+                                        {{ (project.developer_name || '?').charAt(0).toUpperCase() }}
                                     </span>
                                     <span
                                         v-if="project.analyst_testing_name"
                                         class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[9px] font-bold text-orange-700 ring-1 ring-white"
                                         :title="'Analyst Testing: ' + project.analyst_testing_name"
                                     >
-                                        {{ project.analyst_testing_name.charAt(0).toUpperCase() }}
+                                        {{ (project.analyst_testing_name || '?').charAt(0).toUpperCase() }}
                                     </span>
                                 </div>
 

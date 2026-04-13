@@ -6,6 +6,9 @@ import PriorityBadge from '@/Components/PriorityBadge.vue';
 import StageBadge from '@/Components/StageBadge.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useToast } from '@/composables/useToast';
+
+const { error: toastError, success: toastSuccess } = useToast();
 
 defineOptions({ layout: AppLayout });
 
@@ -401,7 +404,7 @@ async function uploadAttachment(event) {
         });
         localAttachments.value.unshift(data);
     } catch (e) {
-        alert('Upload failed: ' + (e.response?.data?.message || e.message));
+        toastError('Upload failed: ' + (e.response?.data?.message || e.message));
     }
     uploadingFile.value = false;
     if (fileInput.value) fileInput.value.value = '';
@@ -497,7 +500,7 @@ async function executeTransfer() {
         showTransferModal.value = false;
         window.location.reload();
     } catch (e) {
-        alert('Transfer failed: ' + (e.response?.data?.message || e.message));
+        toastError('Transfer failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -628,7 +631,7 @@ async function createReleaseNote() {
         if (newNoteFiles.value) newNoteFiles.value.value = '';
         showCreateNote.value = false;
     } catch (e) {
-        alert('Failed to create: ' + (e.response?.data?.message || e.message));
+        toastError('Failed to create: ' + (e.response?.data?.message || e.message));
     }
     creatingNote.value = false;
 }
@@ -639,7 +642,7 @@ async function deleteReleaseNote(id) {
         await axios.delete(`/api/v1/release-notes/${id}`);
         releaseNotes.value = releaseNotes.value.filter(n => n.id !== id);
     } catch (e) {
-        alert('Delete failed: ' + (e.response?.data?.message || e.message));
+        toastError('Delete failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -649,7 +652,7 @@ async function deleteNoteFile(noteId, fileId) {
         await axios.delete(`/api/v1/release-note-files/${fileId}`);
         const note = releaseNotes.value.find(n => n.id === noteId);
         if (note) note.files = note.files.filter(f => f.id !== fileId);
-    } catch (e) { alert('Delete failed: ' + (e.response?.data?.message || e.message)); }
+    } catch (e) { toastError('Delete failed: ' + (e.response?.data?.message || e.message)); }
 }
 
 async function deleteNoteLink(noteId, linkId) {
@@ -658,7 +661,7 @@ async function deleteNoteLink(noteId, linkId) {
         await axios.delete(`/api/v1/release-note-links/${linkId}`);
         const note = releaseNotes.value.find(n => n.id === noteId);
         if (note) note.links = note.links.filter(l => l.id !== linkId);
-    } catch (e) { alert('Delete failed: ' + (e.response?.data?.message || e.message)); }
+    } catch (e) { toastError('Delete failed: ' + (e.response?.data?.message || e.message)); }
 }
 </script>
 
@@ -1419,7 +1422,7 @@ async function deleteNoteLink(noteId, linkId) {
                                     @mousedown.prevent="insertMention(m)"
                                     class="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-[#f5f0ff] transition-colors"
                                 >
-                                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white" :class="avatarColor(m.id)">{{ m.name.charAt(0).toUpperCase() }}</span>
+                                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white" :class="avatarColor(m.id)">{{ (m.name || '?').charAt(0).toUpperCase() }}</span>
                                     <span class="text-gray-900">{{ m.name }}</span>
                                     <span class="text-xs text-gray-400 capitalize ml-auto">{{ m.role }}</span>
                                 </button>

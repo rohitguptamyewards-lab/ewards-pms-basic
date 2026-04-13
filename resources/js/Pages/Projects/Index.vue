@@ -6,6 +6,9 @@ import PriorityBadge from '@/Components/PriorityBadge.vue';
 import StageBadge from '@/Components/StageBadge.vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useToast } from '@/composables/useToast';
+
+const { error: toastError } = useToast();
 
 defineOptions({ layout: AppLayout });
 
@@ -111,7 +114,7 @@ async function changeAssignment(project, field, newValue) {
         await axios.put(`/api/v1/projects/${project.id}`, { [field]: val });
         router.reload({ only: ['projects'] });
     } catch (e) {
-        console.error('Assignment update failed', e);
+        toastError('Assignment update failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -135,7 +138,7 @@ async function changePriority(project, newPriority) {
         await axios.put(`/api/v1/projects/${project.id}`, { priority: newPriority });
         router.reload({ only: ['projects'] });
     } catch (e) {
-        console.error('Priority update failed', e);
+        toastError('Priority update failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -165,7 +168,7 @@ async function changeStage(project, newStage) {
         await axios.put(`/api/v1/projects/${project.id}/stage`, { stage_name: newStage });
         router.reload({ only: ['projects'] });
     } catch (e) {
-        console.error('Stage update failed', e);
+        toastError('Stage update failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -187,7 +190,7 @@ async function saveName(project) {
         await axios.put(`/api/v1/projects/${project.id}`, { name: newName });
         router.reload({ only: ['projects'] });
     } catch (e) {
-        console.error('Name update failed', e);
+        toastError('Name update failed: ' + (e.response?.data?.message || e.message));
     }
 }
 
@@ -226,7 +229,7 @@ async function saveDate(project, field, value) {
     try {
         await axios.put(`/api/v1/projects/${project.id}`, { [field]: value || null });
         project[field] = value || null;
-    } catch (e) { console.error('Date update failed', e); }
+    } catch (e) { toastError('Date update failed: ' + (e.response?.data?.message || e.message)); }
 }
 
 // ── Subtask Tree (expand/collapse & lazy load children) ────
@@ -312,7 +315,7 @@ async function postComment() {
         newComment.value = '';
         router.reload({ only: ['projects'] });
     } catch (e) {
-        console.error('Failed to post comment', e);
+        toastError('Failed to post comment: ' + (e.response?.data?.message || e.message));
     }
     postingComment.value = false;
 }
@@ -353,7 +356,7 @@ async function saveDependencies() {
         await axios.put(`/api/v1/projects/${depModalProject.value.id}`, { linked_project_ids: depSelected.value });
         router.reload({ only: ['projects'] });
     } catch (e) {
-        console.error('Failed to save dependencies', e);
+        toastError('Failed to save dependencies: ' + (e.response?.data?.message || e.message));
     }
     depSaving.value = false;
     closeDepModal();
