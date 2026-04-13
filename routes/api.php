@@ -93,6 +93,7 @@ Route::prefix('v1')->name('api.')->middleware(['auth'])->group(function () {
     Route::get('automations/{id}/logs', [AutomationController::class, 'logs']);
 
     // Release Notes
+    Route::post('release-notes/setup', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'setupTables']);
     Route::get('projects/{projectId}/release-notes', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'index']);
     Route::post('projects/{projectId}/release-notes', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'store']);
     Route::put('release-notes/{id}', [\App\Http\Controllers\Api\V1\ReleaseNoteController::class, 'update']);

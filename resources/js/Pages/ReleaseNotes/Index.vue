@@ -1,10 +1,31 @@
 <script setup>
 import { ref, computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 
 defineOptions({ layout: AppLayout });
+
+const page = usePage();
+const userRole = computed(() => page.props.auth?.user?.role);
+const isManager = computed(() => ['manager', 'analyst_head'].includes(userRole.value));
+
+const settingUp = ref(false);
+const setupDone = ref(false);
+const setupError = ref('');
+
+async function runSetup() {
+    settingUp.value = true;
+    setupError.value = '';
+    try {
+        await axios.post('/api/v1/release-notes/setup');
+        setupDone.value = true;
+        window.location.reload();
+    } catch (e) {
+        setupError.value = e.response?.data?.message || e.message;
+    }
+    settingUp.value = false;
+}
 
 const props = defineProps({
     project: Object,
@@ -213,7 +234,18 @@ const fileIconColors = {
 
         <!-- Migration pending banner -->
         <div v-if="migrationPending" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
-            <strong>Setup required:</strong> The release notes database tables have not been created yet. Please run <code class="bg-amber-100 px-1 rounded">php artisan migrate</code> on your server to enable this feature.
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                    <strong>Setup required:</strong> The release notes database tables have not been created yet.
+                    <span v-if="!isManager"> Ask a manager to set it up.</span>
+                </div>
+                <div v-if="isManager" class="flex items-center gap-3 shrink-0">
+                    <span v-if="setupError" class="text-red-600 text-xs">{{ setupError }}</span>
+                    <button @click="runSetup" :disabled="settingUp" class="rounded-lg bg-amber-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-50">
+                        {{ settingUp ? 'Setting up...' : 'Set Up Now' }}
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Notes List -->

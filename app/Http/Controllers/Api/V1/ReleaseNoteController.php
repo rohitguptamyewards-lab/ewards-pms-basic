@@ -129,6 +129,59 @@ class ReleaseNoteController extends Controller
     }
 
     /**
+     * One-time in-app table setup — creates the three release note tables
+     * if they don't exist. Manager/analyst_head only.
+     */
+    public function setupTables(): JsonResponse
+    {
+        abort_unless($this->canDelete(), 403, 'Only managers can run setup.');
+
+        try {
+            if (!Schema::hasTable('release_notes')) {
+                Schema::create('release_notes', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('project_id');
+                    $table->string('title');
+                    $table->text('description')->nullable();
+                    $table->unsignedBigInteger('created_by');
+                    $table->timestamps();
+                    $table->foreign('project_id')->references('id')->on('projects')->cascadeOnDelete();
+                    $table->foreign('created_by')->references('id')->on('team_members');
+                });
+            }
+
+            if (!Schema::hasTable('release_note_files')) {
+                Schema::create('release_note_files', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('release_note_id');
+                    $table->string('original_name');
+                    $table->string('stored_path');
+                    $table->string('mime_type')->nullable();
+                    $table->unsignedBigInteger('size')->default(0);
+                    $table->timestamps();
+                    $table->foreign('release_note_id')->references('id')->on('release_notes')->cascadeOnDelete();
+                });
+            }
+
+            if (!Schema::hasTable('release_note_links')) {
+                Schema::create('release_note_links', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('release_note_id');
+                    $table->string('label')->nullable();
+                    $table->text('url');
+                    $table->timestamps();
+                    $table->foreign('release_note_id')->references('id')->on('release_notes')->cascadeOnDelete();
+                });
+            }
+
+            return response()->json(['message' => 'Release notes tables are ready.']);
+        } catch (\Throwable $e) {
+            \Log::error('Release notes setup failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Setup failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Store a new release note with files and links.
      */
     public function store(Request $request, int $projectId): JsonResponse
