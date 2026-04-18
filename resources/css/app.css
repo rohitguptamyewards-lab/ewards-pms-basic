@@ -23,69 +23,100 @@
     color-scheme: dark;
 }
 
-.dark .rounded-xl,
-.dark .rounded-lg,
+/* ── Backgrounds ── */
+/* Only target white and standard gray — do NOT catch rounded-lg/xl which breaks colored buttons */
 .dark .bg-white,
 .dark table {
-    background-color: #1f2937 !important;
-    border-color: #374151 !important;
+    background-color: #1e293b !important;
 }
 
 .dark .bg-gray-50,
 .dark .bg-gray-100 {
-    background-color: #111827 !important;
+    background-color: #0f172a !important;
 }
 
+/* eWards light-purple brand backgrounds → dark equivalent so they stop glowing */
+.dark .bg-\[\#f5f0ff\],
+.dark .bg-\[\#faf8ff\],
+.dark .bg-\[\#e8ddf0\],
+.dark .bg-\[\#e8d5f5\],
+.dark .bg-\[\#ddd0f7\] {
+    background-color: #1e1433 !important;
+}
+
+.dark .bg-\[\#f5f0ff\]\/20,
+.dark .bg-\[\#f5f0ff\]\/30,
+.dark .bg-\[\#f5f0ff\]\/50 {
+    background-color: rgba(30, 20, 51, 0.6) !important;
+}
+
+/* ── Text ── */
 .dark .text-gray-900,
 .dark .text-gray-800,
 .dark .text-gray-700 {
-    color: #f3f4f6 !important;
+    color: #f1f5f9 !important;
 }
 
 .dark .text-gray-600,
 .dark .text-gray-500 {
-    color: #9ca3af !important;
+    color: #94a3b8 !important;
 }
 
 .dark .text-gray-400 {
-    color: #6b7280 !important;
+    color: #64748b !important;
 }
 
+/* ── Borders ── */
 .dark .border-gray-200,
 .dark .border-gray-100,
 .dark .border-gray-300 {
-    border-color: #374151 !important;
+    border-color: #334155 !important;
+}
+
+.dark .border-\[\#ddd0f7\],
+.dark .border-\[\#e8ddf0\] {
+    border-color: #334155 !important;
 }
 
 .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
 .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
-    border-color: #374151 !important;
+    border-color: #334155 !important;
 }
 
-.dark input,
+/* ── Inputs — skip checkbox/radio which have their own styling ── */
+.dark input:not([type="checkbox"]):not([type="radio"]),
 .dark select,
 .dark textarea {
-    background-color: #374151 !important;
-    border-color: #4b5563 !important;
-    color: #f3f4f6 !important;
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
 }
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-    color: #6b7280 !important;
+    color: #64748b !important;
 }
 
-.dark .shadow-sm {
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important;
+/* ── Shadows ── */
+.dark .shadow-sm,
+.dark .shadow-lg,
+.dark .shadow-xl {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5) !important;
 }
 
+/* ── Table header ── */
 .dark thead {
-    background-color: #111827 !important;
+    background-color: #0f172a !important;
+}
+
+/* ── Hover states ── */
+.dark .hover\:bg-gray-50:hover {
+    background-color: #1e293b !important;
 }
 
 .dark .hover\:bg-\[\#f5f0ff\]\/30:hover,
 .dark .hover\:bg-\[\#f5f0ff\]\/20:hover {
-    background-color: rgba(78, 26, 119, 0.1) !important;
+    background-color: rgba(30, 20, 51, 0.5) !important;
 }
 
 @media print {
