@@ -25,3 +25,15 @@ Homestead.yaml
 Thumbs.db
 /database/*.sqlite
 /database/*.sqlite-journal
+
+# Local dev / AI tooling
+claude
+.claude/
+docs/
+scripts/
+
+# OS & editor extras
+*.swp
+*.swo
+.env.local
+.env.*.local
