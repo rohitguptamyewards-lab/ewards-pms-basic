@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from '@/composables/useToast';
 
@@ -101,6 +101,16 @@ const selectedMember = ref(null);
 const memberDetail = ref(null);
 const memberLoading = ref(false);
 const detailTab = ref('worklogs');
+
+// Auto-open member detail if ?member=<id> is in the URL
+onMounted(() => {
+    const params = new URLSearchParams(window.location.search);
+    const memberId = params.get('member');
+    if (memberId) {
+        const worker = (props.workers || []).find(w => String(w.id) === String(memberId));
+        if (worker) openMemberDetail(worker);
+    }
+});
 
 async function openMemberDetail(worker) {
     selectedMember.value = worker;
