@@ -71,7 +71,7 @@ function submit() {
                             <input v-model="form.remember" type="checkbox" class="rounded border-gray-300 text-[#4e1a77] focus:ring-[#4e1a77]" />
                             <span class="text-sm text-gray-600">Remember me</span>
                         </label>
-                        <a href="#" class="text-sm font-semibold text-[#4e1a77] underline hover:text-[#3d1560]">Forgot Password?</a>
+                        <a href="/forgot-password" class="text-sm font-semibold text-[#4e1a77] underline hover:text-[#3d1560]">Forgot Password?</a>
                     </div>
 
                     <button

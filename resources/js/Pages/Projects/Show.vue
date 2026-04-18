@@ -845,6 +845,23 @@ async function deleteNoteLink(noteId, linkId) {
                                 <span v-if="project?.due_date && isOverdue(project.due_date)" class="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">OVERDUE</span>
                             </span>
                         </div>
+
+                        <!-- Expected Live Date -->
+                        <div class="p-3.5">
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Expected Live Date</p>
+                            <input
+                                v-if="editingField === 'expected_live_date'"
+                                type="date"
+                                :value="project?.expected_live_date || ''"
+                                @change="updateProjectField('expected_live_date', $event.target.value || null)"
+                                @blur="updateProjectField('expected_live_date', $event.target.value || null)"
+                                class="rounded border border-[#4e1a77] px-2 py-1 text-sm focus:ring-1 focus:ring-[#4e1a77]"
+                                autofocus
+                            />
+                            <span v-else @click="startEditField('expected_live_date')" class="text-sm cursor-pointer rounded px-1 py-0.5 hover:bg-gray-100 transition-colors" :class="project?.expected_live_date ? 'text-gray-700' : 'text-gray-400'">
+                                {{ project?.expected_live_date ? formatDate(project.expected_live_date) : 'Set date' }}
+                            </span>
+                        </div>
                     </div>
                 </div>
 

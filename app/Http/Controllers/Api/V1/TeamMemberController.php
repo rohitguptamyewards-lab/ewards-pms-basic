@@ -21,11 +21,13 @@ class TeamMemberController extends Controller
         $role = $this->authRole();
         abort_unless(in_array($role, self::MANAGER_ROLES), 403);
 
-        $filters = $request->only(['search', 'role', 'is_active']);
+        $filters = $request->only(['search', 'role', 'is_active', 'employee_type']);
 
         $query = DB::table('team_members')
+            ->leftJoin('team_members as rm', 'team_members.reporting_manager_id', '=', 'rm.id')
             ->select(
                 'team_members.*',
+                'rm.name as reporting_manager_name',
                 DB::raw('(SELECT COUNT(DISTINCT pw.project_id) FROM project_workers pw WHERE pw.user_id = team_members.id) as project_count'),
                 DB::raw('(SELECT COALESCE(SUM(wl.hours_spent), 0) FROM work_logs wl WHERE wl.user_id = team_members.id AND wl.deleted_at IS NULL) as total_hours')
             )
@@ -44,16 +46,28 @@ class TeamMemberController extends Controller
         if (isset($filters['is_active']) && $filters['is_active'] !== '') {
             $query->where('team_members.is_active', (bool) $filters['is_active']);
         }
+        if (!empty($filters['employee_type'])) {
+            $query->where('team_members.employee_type', $filters['employee_type']);
+        }
 
         $members = $query->orderBy('team_members.name')->get();
+
+        $managers = DB::table('team_members')
+            ->select('id', 'name')
+            ->whereIn('role', ['manager', 'analyst_head'])
+            ->whereNull('deleted_at')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         if ($request->wantsJson()) {
             return response()->json($members);
         }
 
         return Inertia::render('TeamMembers/Index', [
-            'members' => $members,
-            'filters' => $filters,
+            'members'  => $members,
+            'filters'  => $filters,
+            'managers' => $managers,
         ]);
     }
 
@@ -61,7 +75,15 @@ class TeamMemberController extends Controller
     {
         abort_unless(in_array($this->authRole(), self::ADMIN_ROLES), 403);
 
-        return Inertia::render('TeamMembers/Create');
+        $managers = DB::table('team_members')
+            ->select('id', 'name')
+            ->whereIn('role', ['manager', 'analyst_head'])
+            ->whereNull('deleted_at')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('TeamMembers/Create', ['managers' => $managers]);
     }
 
     public function store(Request $request)
@@ -69,11 +91,13 @@ class TeamMemberController extends Controller
         abort_unless(in_array($this->authRole(), self::ADMIN_ROLES), 403);
 
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'email'       => ['required', 'email', 'max:255', 'unique:team_members,email'],
-            'password'    => ['required', 'string', 'min:6'],
-            'role'        => ['required', 'string', 'in:' . implode(',', self::ALL_ROLES)],
-            'joined_date' => ['nullable', 'date'],
+            'name'                  => ['required', 'string', 'max:255'],
+            'email'                 => ['required', 'email', 'max:255', 'unique:team_members,email'],
+            'password'              => ['required', 'string', 'min:6'],
+            'role'                  => ['required', 'string', 'in:' . implode(',', self::ALL_ROLES)],
+            'joined_date'           => ['nullable', 'date'],
+            'employee_type'         => ['nullable', 'string', 'in:technical,non_technical'],
+            'reporting_manager_id'  => ['nullable', 'integer', 'exists:team_members,id'],
         ]);
 
         $plainPassword = $data['password'];
@@ -116,12 +140,14 @@ class TeamMemberController extends Controller
         }
 
         $data = $request->validate([
-            'name'        => ['sometimes', 'string', 'max:255'],
-            'email'       => ['sometimes', 'email', 'max:255', 'unique:team_members,email,' . $id],
-            'role'        => ['sometimes', 'string', 'in:' . implode(',', self::ALL_ROLES)],
-            'is_active'   => ['sometimes', 'boolean'],
-            'password'    => ['sometimes', 'string', 'min:6'],
-            'joined_date' => ['nullable', 'date'],
+            'name'                  => ['sometimes', 'string', 'max:255'],
+            'email'                 => ['sometimes', 'email', 'max:255', 'unique:team_members,email,' . $id],
+            'role'                  => ['sometimes', 'string', 'in:' . implode(',', self::ALL_ROLES)],
+            'is_active'             => ['sometimes', 'boolean'],
+            'password'              => ['sometimes', 'string', 'min:6'],
+            'joined_date'           => ['nullable', 'date'],
+            'employee_type'         => ['nullable', 'string', 'in:technical,non_technical'],
+            'reporting_manager_id'  => ['nullable', 'integer', 'exists:team_members,id'],
         ]);
 
         if (isset($data['password'])) {

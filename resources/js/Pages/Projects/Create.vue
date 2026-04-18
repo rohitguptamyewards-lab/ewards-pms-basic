@@ -39,6 +39,7 @@ const form = useForm({
     parent_id: props.parentProject?.id ? String(props.parentProject.id) : (r?.parent_id ? String(r.parent_id) : ''),
     start_date: r?.start_date || '',
     due_date: r?.due_date || '',
+    expected_live_date: r?.expected_live_date || '',
     linked_project_ids: r?.linked_project_ids ? (Array.isArray(r.linked_project_ids) ? r.linked_project_ids : JSON.parse(r.linked_project_ids || '[]')) : [],
 });
 
@@ -181,8 +182,8 @@ async function submit() {
                     <textarea v-model="form.objective" rows="2" class="mt-1 block w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
                 </div>
 
-                <!-- Row: Start Date + Due Date -->
-                <div class="grid grid-cols-2 gap-4">
+                <!-- Row: Start Date + Due Date + Expected Live Date -->
+                <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Start Date</label>
                         <input v-model="form.start_date" type="date" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
@@ -192,6 +193,11 @@ async function submit() {
                         <label class="block text-sm font-medium text-gray-700">Due Date</label>
                         <input v-model="form.due_date" type="date" :min="form.start_date || undefined" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
                         <p v-if="form.errors.due_date" class="mt-1 text-xs text-red-500">{{ form.errors.due_date }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Expected Live Date</label>
+                        <input v-model="form.expected_live_date" type="date" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]" />
+                        <p v-if="form.errors.expected_live_date" class="mt-1 text-xs text-red-500">{{ form.errors.expected_live_date }}</p>
                     </div>
                 </div>
 

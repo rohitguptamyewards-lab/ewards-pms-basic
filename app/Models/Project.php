@@ -16,7 +16,7 @@ class Project extends Model
     protected $fillable = [
         'name', 'description', 'objective', 'tags', 'status', 'priority',
         'owner_id', 'created_by', 'linked_project_ids',
-        'parent_id', 'start_date', 'due_date',
+        'parent_id', 'start_date', 'due_date', 'expected_live_date',
     ];
 
     protected function casts(): array
@@ -28,6 +28,7 @@ class Project extends Model
             'linked_project_ids' => 'array',
             'start_date'         => 'date',
             'due_date'           => 'date',
+            'expected_live_date' => 'date',
         ];
     }
 

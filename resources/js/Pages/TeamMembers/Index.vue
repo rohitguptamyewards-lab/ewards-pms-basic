@@ -10,8 +10,9 @@ const { error: toastError, success: toastSuccess } = useToast();
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    members: { type: Array, default: () => [] },
-    filters: { type: Object, default: () => ({}) },
+    members:  { type: Array, default: () => [] },
+    filters:  { type: Object, default: () => ({}) },
+    managers: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -20,9 +21,10 @@ const isAdmin = computed(() => ['manager', 'analyst_head'].includes(role.value))
 
 // Filters
 const filterForm = ref({
-    search: props.filters?.search || '',
-    role: props.filters?.role || '',
-    is_active: props.filters?.is_active ?? '',
+    search:        props.filters?.search || '',
+    role:          props.filters?.role || '',
+    is_active:     props.filters?.is_active ?? '',
+    employee_type: props.filters?.employee_type || '',
 });
 
 function applyFilters() {
@@ -43,9 +45,11 @@ const editForm = ref({});
 function startEdit(member) {
     editingId.value = member.id;
     editForm.value = {
-        name: member.name,
-        email: member.email,
-        role: member.role,
+        name:                 member.name,
+        email:                member.email,
+        role:                 member.role,
+        employee_type:        member.employee_type || '',
+        reporting_manager_id: member.reporting_manager_id || '',
     };
 }
 
@@ -162,6 +166,14 @@ function formatDate(d) {
                         <option value="0">Inactive</option>
                     </select>
                 </div>
+                <div>
+                    <label class="text-xs font-medium text-gray-500 mb-1 block">Employee Type</label>
+                    <select v-model="filterForm.employee_type" @change="applyFilters" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77]">
+                        <option value="">All Types</option>
+                        <option value="technical">Technical</option>
+                        <option value="non_technical">Non-Technical</option>
+                    </select>
+                </div>
                 <button @click="applyFilters" class="rounded-lg bg-[#4e1a77] px-4 py-2 text-sm font-medium text-white hover:bg-[#3d1560]">Filter</button>
                 <button @click="clearFilters" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Clear</button>
             </div>
@@ -194,6 +206,8 @@ function formatDate(d) {
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Member</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Role</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Reports To</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Projects</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Total Hours</th>
@@ -236,6 +250,35 @@ function formatDate(d) {
                             </template>
                             <template v-else>
                                 <span :class="roleColors[m.role] || 'bg-gray-100 text-gray-600'" class="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase">{{ m.role }}</span>
+                            </template>
+                        </td>
+                        <!-- Employee Type -->
+                        <td class="px-4 py-3">
+                            <template v-if="editingId === m.id">
+                                <select v-model="editForm.employee_type" class="rounded border border-[#4e1a77] px-2 py-1 text-xs focus:ring-1 focus:ring-[#4e1a77]">
+                                    <option value="">—</option>
+                                    <option value="technical">Technical</option>
+                                    <option value="non_technical">Non-Technical</option>
+                                </select>
+                            </template>
+                            <template v-else>
+                                <span v-if="m.employee_type" class="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                                    :class="m.employee_type === 'technical' ? 'bg-cyan-100 text-cyan-700' : 'bg-orange-100 text-orange-700'">
+                                    {{ m.employee_type === 'technical' ? 'Technical' : 'Non-Technical' }}
+                                </span>
+                                <span v-else class="text-xs text-gray-400">—</span>
+                            </template>
+                        </td>
+                        <!-- Reporting Manager -->
+                        <td class="px-4 py-3">
+                            <template v-if="editingId === m.id">
+                                <select v-model="editForm.reporting_manager_id" class="rounded border border-[#4e1a77] px-2 py-1 text-xs focus:ring-1 focus:ring-[#4e1a77]">
+                                    <option value="">None</option>
+                                    <option v-for="mgr in managers" :key="mgr.id" :value="mgr.id">{{ mgr.name }}</option>
+                                </select>
+                            </template>
+                            <template v-else>
+                                <span class="text-xs text-gray-700">{{ m.reporting_manager_name || '—' }}</span>
                             </template>
                         </td>
                         <!-- Status -->

@@ -5,12 +5,18 @@ import { Head, Link, router } from '@inertiajs/vue3';
 
 defineOptions({ layout: AppLayout });
 
+const props = defineProps({
+    managers: { type: Array, default: () => [] },
+});
+
 const form = ref({
     name: '',
     email: '',
     password: '',
     role: 'employee',
     joined_date: '',
+    employee_type: '',
+    reporting_manager_id: '',
 });
 
 const errors = ref({});
@@ -142,6 +148,33 @@ async function submit() {
                             class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77] outline-none"
                         />
                         <p v-if="errors.joined_date" class="mt-1 text-xs text-red-600">{{ errors.joined_date }}</p>
+                    </div>
+                </div>
+
+                <!-- Employee Type & Reporting Manager -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Employee Type</label>
+                        <select
+                            v-model="form.employee_type"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77] outline-none"
+                        >
+                            <option value="">Select type...</option>
+                            <option value="technical">Technical</option>
+                            <option value="non_technical">Non-Technical</option>
+                        </select>
+                        <p v-if="errors.employee_type" class="mt-1 text-xs text-red-600">{{ errors.employee_type }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Reporting Manager</label>
+                        <select
+                            v-model="form.reporting_manager_id"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#4e1a77] focus:ring-1 focus:ring-[#4e1a77] outline-none"
+                        >
+                            <option value="">None</option>
+                            <option v-for="m in managers" :key="m.id" :value="m.id">{{ m.name }}</option>
+                        </select>
+                        <p v-if="errors.reporting_manager_id" class="mt-1 text-xs text-red-600">{{ errors.reporting_manager_id }}</p>
                     </div>
                 </div>
 

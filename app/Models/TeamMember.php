@@ -14,7 +14,7 @@ class TeamMember extends Authenticatable
     protected $table = 'team_members';
 
     protected $fillable = [
-        'name', 'email', 'password', 'role', 'is_active',
+        'name', 'email', 'password', 'role', 'is_active', 'employee_type', 'reporting_manager_id',
     ];
 
     protected $hidden = [
