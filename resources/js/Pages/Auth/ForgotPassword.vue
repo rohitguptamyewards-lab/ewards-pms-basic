@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 
 const page = usePage();
-const status = computed(() => page.props.flash?.status);
+const status = computed(() => page.props.flash?.success);
 
 const form = useForm({ email: '' });
 

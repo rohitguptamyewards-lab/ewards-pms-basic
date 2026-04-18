@@ -45,7 +45,7 @@ class PasswordResetController extends Controller
             }
         }
 
-        return back()->with('status', 'If that email is registered and active, a reset link has been sent.');
+        return back()->with('success', 'If that email is registered and active, a reset link has been sent.');
     }
 
     public function showResetForm(Request $request, string $token)
