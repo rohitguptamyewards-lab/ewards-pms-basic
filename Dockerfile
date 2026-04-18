@@ -2,8 +2,8 @@ FROM php:8.4-cli
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpq-dev libzip-dev \
-    && docker-php-ext-install pdo_pgsql pgsql zip bcmath \
+    git curl zip unzip default-libmysqlclient-dev libzip-dev \
+    && docker-php-ext-install pdo_mysql zip bcmath \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20 (npm included)

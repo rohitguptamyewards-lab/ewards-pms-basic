@@ -10,26 +10,6 @@ use Symfony\Component\Mailer\Transport\Dsn;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        // Neon PostgreSQL endpoint injection (only for direct connections, not pooler)
-        $this->app->bind('db.connector.pgsql', function () {
-            return new class extends \Illuminate\Database\Connectors\PostgresConnector {
-                protected function getDsn(array $config)
-                {
-                    $dsn = parent::getDsn($config);
-                    $host = $config['host'] ?? '';
-                    $endpoint = $config['neon_endpoint'] ?? null;
-                    // Skip endpoint injection for pooler connections (SNI handles routing)
-                    if ($endpoint && !str_contains($host, '-pooler')) {
-                        $dsn .= ";options='endpoint={$endpoint}'";
-                    }
-                    return $dsn;
-                }
-            };
-        });
-    }
-
     public function boot(): void
     {
         // Register Brevo mail transport
