@@ -8,15 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->date('expected_live_date')->nullable()->after('due_date');
-        });
+        if (!Schema::hasColumn('projects', 'expected_live_date')) {
+            Schema::table('projects', function (Blueprint $table) {
+                $table->date('expected_live_date')->nullable();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->dropColumn('expected_live_date');
-        });
+        if (Schema::hasColumn('projects', 'expected_live_date')) {
+            Schema::table('projects', function (Blueprint $table) {
+                $table->dropColumn('expected_live_date');
+            });
+        }
     }
 };
